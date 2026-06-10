@@ -2,22 +2,33 @@ import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { analyzeTags } from "../core/analyze.js";
+import { assignTagsToLines, selectLine } from "../core/lines.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import { color, info, printError, warn } from "./ui.js";
 import { printFirstRunHint } from "./guidance.js";
 
 export interface ListFlags {
   json?: boolean;
+  tag?: string;
+  all?: boolean;
 }
 
 export async function runList(cwd: string, flags: ListFlags): Promise<number> {
   try {
     const config = await loadConfig(cwd);
     await ensureRepo({ cwd });
-    const pattern = compilePattern(config.pattern);
-    const model = createModel(config.model);
-    const tags = await listTags({ cwd });
-    const analysis = analyzeTags(tags, pattern, model);
+    const line = selectLine(config, flags.tag);
+    const model = createModel(line.model);
+    const pattern = compilePattern(line.pattern);
+    const allTags = await listTags({ cwd });
+    const assignment = assignTagsToLines(allTags, config.lines);
+    const lineTags = assignment.byLine.get(line.name) ?? [];
+    // In single-line mode, include orphans so they appear as pattern-mismatch anomalies
+    // (backward-compatible: old single-line behaviour reported all non-matching tags).
+    const tagsForAnalysis = config.lines.length === 1
+      ? allTags
+      : [...lineTags, ...assignment.orphans];
+    const analysis = analyzeTags(tagsForAnalysis, pattern, model);
 
     if (flags.json) {
       info(

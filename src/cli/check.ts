@@ -5,12 +5,14 @@ import { createModel } from "../core/models/index.js";
 import type { VersionModel } from "../types.js";
 import { checkTags } from "../core/check.js";
 import { analyzeTags } from "../core/analyze.js";
+import { selectLine } from "../core/lines.js";
 import { ensureRepo, listTags, GitError } from "../git/git.js";
 import { color, info, printError, success } from "./ui.js";
 import { printFirstRunHint } from "./guidance.js";
 
 export interface CheckFlags {
   json?: boolean;
+  tag?: string;
 }
 
 export async function runCheck(
@@ -20,8 +22,9 @@ export async function runCheck(
 ): Promise<number> {
   try {
     const config = await loadConfig(cwd);
-    const pattern = compilePattern(config.pattern);
-    const model = createModel(config.model);
+    const line = selectLine(config, flags.tag);
+    const pattern = compilePattern(line.pattern);
+    const model = createModel(line.model);
 
     if (tags.length > 0) {
       return await runExplicit(cwd, pattern, model, tags, flags);

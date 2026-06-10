@@ -12,6 +12,7 @@ import {
 import { writeConfig, loadConfig } from "../src/core/config.js";
 import { createModel } from "../src/core/models/index.js";
 import { planNext } from "../src/core/plan.js";
+import { selectLine, assignTagsToLines } from "../src/core/lines.js";
 import type { TagsmithConfig } from "../src/types.js";
 
 function gitInit(dir: string): void {
@@ -51,30 +52,43 @@ describe("git integration", () => {
 
   it("end-to-end: config → plan next → create → plan again", async () => {
     const config: TagsmithConfig = {
-      pattern: "v{version}",
-      model: { type: "semver" },
-      initialVersion: "0.1.0",
-      push: false,
+      lines: [
+        {
+          name: "default",
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          push: false,
+        },
+      ],
+      default: "default",
     };
     await writeConfig(dir, config);
 
     const loaded = await loadConfig(dir);
-    const model = createModel(loaded.model);
+    const line = selectLine(loaded);
+    const model = createModel(line.model);
 
     // No tags yet → fresh initial.
-    const first = planNext(loaded, model, await listTags({ cwd: dir }), "patch");
+    const allTags1 = await listTags({ cwd: dir });
+    const lineTags1 = assignTagsToLines(allTags1, loaded.lines).byLine.get(line.name) ?? [];
+    const first = planNext(line, model, lineTags1, "patch");
     expect(first.tag).toBe("v0.1.0");
     expect(first.fresh).toBe(true);
     await createTag({ cwd: dir, name: first.tag });
 
     // Now bump minor.
-    const second = planNext(loaded, model, await listTags({ cwd: dir }), "minor");
+    const allTags2 = await listTags({ cwd: dir });
+    const lineTags2 = assignTagsToLines(allTags2, loaded.lines).byLine.get(line.name) ?? [];
+    const second = planNext(line, model, lineTags2, "minor");
     expect(second.tag).toBe("v0.2.0");
     expect(second.fromVersion).toBe("0.1.0");
     await createTag({ cwd: dir, name: second.tag });
 
     // Default patch from latest.
-    const third = planNext(loaded, model, await listTags({ cwd: dir }), "patch");
+    const allTags3 = await listTags({ cwd: dir });
+    const lineTags3 = assignTagsToLines(allTags3, loaded.lines).byLine.get(line.name) ?? [];
+    const third = planNext(line, model, lineTags3, "patch");
     expect(third.tag).toBe("v0.2.1");
   });
 

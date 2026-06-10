@@ -44,14 +44,24 @@ export type ModelConfig =
   | CalverModelConfig
   | BuildModelConfig;
 
-export interface TagsmithConfig {
-  /** Tag template; MUST contain the `{version}` placeholder. e.g. "v{version}". */
+/** 一條獨立的 tag 線:有自己的 pattern、版本模型、起始版本與 push 設定。 */
+export interface TagLine {
+  /** 線名,唯一,用於 CLI 選線。 */
+  name: string;
+  /** Tag 模板;MUST 含且僅含一個 `{version}`。 */
   pattern: string;
   model: ModelConfig;
-  /** Version used when no conforming tag exists yet. */
+  /** 無對應 tag 時的起始版本。 */
   initialVersion: string;
-  /** Default push behaviour for `create`. */
+  /** 建立時是否預設 push。 */
   push: boolean;
+}
+
+/** 內部正規化後的設定:一律為多線結構。 */
+export interface TagsmithConfig {
+  lines: TagLine[];
+  /** 預設線名,正規化後一定指向有效的 line.name。 */
+  default: string;
 }
 
 /** A tag parsed against the configured pattern + model. */

@@ -2,6 +2,7 @@ import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { planNext, validateExplicit } from "../core/plan.js";
+import { assignTagsToLines, selectLine } from "../core/lines.js";
 import { createTag, ensureRepo, listTags, pushTag } from "../git/git.js";
 import type { BumpLevel } from "../types.js";
 import { color, printError, success, warn } from "./ui.js";
@@ -14,6 +15,7 @@ export interface CreateFlags {
   push?: boolean;
   dryRun?: boolean;
   allowOutOfOrder?: boolean;
+  tag?: string;
 }
 
 const LEVELS: BumpLevel[] = ["major", "minor", "patch", "prerelease", "auto"];
@@ -22,13 +24,15 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
   try {
     const config = await loadConfig(cwd);
     await ensureRepo({ cwd });
-    const model = createModel(config.model);
-    const pattern = compilePattern(config.pattern);
-    const tags = await listTags({ cwd });
+    const line = selectLine(config, flags.tag);
+    const model = createModel(line.model);
+    const pattern = compilePattern(line.pattern);
+    const allTags = await listTags({ cwd });
+    const lineTags = assignTagsToLines(allTags, config.lines).byLine.get(line.name) ?? [];
 
     let tagName: string;
     if (flags.setVersion !== undefined) {
-      const result = validateExplicit(config, model, flags.setVersion, tags, {
+      const result = validateExplicit(line, model, flags.setVersion, lineTags, {
         allowOutOfOrder: flags.allowOutOfOrder,
       });
       if (!result.ok) {
@@ -39,7 +43,7 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
       tagName = pattern.render(model.format(parsed));
     } else {
       const level = resolveLevel(flags.level);
-      const plan = planNext(config, model, tags, level);
+      const plan = planNext(line, model, lineTags, level);
       if (plan.fresh && plan.analysis.anomalies.length > 0) {
         warn(
           `${plan.analysis.anomalies.length} non-conforming tag(s) ignored; treating repo as having no prior version.`,
@@ -48,21 +52,21 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
       tagName = plan.tag;
     }
 
-    if (tags.includes(tagName)) {
+    if (lineTags.includes(tagName)) {
       printError(`Tag "${tagName}" already exists.`);
       return 1;
     }
 
     if (flags.dryRun) {
       warn(`[dry-run] would create ${color.cyan(tagName)}${flags.message ? " (annotated)" : ""}`);
-      if (flags.push ?? config.push) warn(`[dry-run] would push ${tagName}`);
+      if (flags.push ?? line.push) warn(`[dry-run] would push ${tagName}`);
       return 0;
     }
 
     await createTag({ cwd, name: tagName, message: flags.message });
     success(`Created tag ${color.cyan(tagName)}`);
 
-    const willPush = flags.push ?? config.push;
+    const willPush = flags.push ?? line.push;
     if (willPush) {
       await pushTag({ cwd, name: tagName });
       success(`Pushed ${tagName}`);
