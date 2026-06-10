@@ -5,6 +5,7 @@ import { runList } from "./list.js";
 import { runNext } from "./next.js";
 import { runCreate } from "./create.js";
 import { runGuide } from "./guide.js";
+import { runCheck } from "./check.js";
 import { printError } from "./ui.js";
 
 const program = new Command();
@@ -29,6 +30,7 @@ Examples:
   $ tagsmith init                          Define the tag spec (interactive)
   $ tagsmith guide                         Step-by-step walkthrough
   $ tagsmith list                          Inspect existing tags
+  $ tagsmith check v1.2.3                  Validate a tag against the spec
   $ tagsmith next --level minor            Preview the next tag
   $ tagsmith create --level minor --push   Create and push the next tag
 `,
@@ -74,6 +76,16 @@ program
   .option("--json", "output JSON")
   .action(async (opts) => {
     process.exitCode = await runNext(process.cwd(), opts);
+  });
+
+program
+  .command("check [tags...]")
+  .description(
+    "Validate tags against the spec; with no args, lint all repo tags",
+  )
+  .option("--json", "output JSON")
+  .action(async (tags: string[], opts) => {
+    process.exitCode = await runCheck(process.cwd(), tags, opts);
   });
 
 const createCommand = program
