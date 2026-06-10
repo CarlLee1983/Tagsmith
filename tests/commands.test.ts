@@ -7,6 +7,7 @@ import { runInit } from "../src/cli/init.js";
 import { runList } from "../src/cli/list.js";
 import { runNext } from "../src/cli/next.js";
 import { runCreate } from "../src/cli/create.js";
+import { runCheck } from "../src/cli/check.js";
 import { configExists } from "../src/core/config.js";
 
 /** Capture everything written to stdout/stderr during `fn`. */
@@ -140,6 +141,34 @@ describe("command runners (in-process)", () => {
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/tagsmith init/);
       expect(r.out).toMatch(/tagsmith init/);
+    });
+  });
+
+  describe("check", () => {
+    it("passes a conforming explicit tag (exit 0)", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runCheck(dir, ["v1.2.3"], {}));
+      expect(r.code).toBe(0);
+    });
+
+    it("fails a non-conforming explicit tag (exit 1)", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runCheck(dir, ["junk"], {}));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/junk/);
+    });
+
+    it("detects a duplicate against an existing tag", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "v1.0.0");
+      const r = await capture(() => runCheck(dir, ["v1.0.0"], {}));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/duplicate/);
+    });
+
+    it("fails without a config", async () => {
+      const r = await capture(() => runCheck(dir, ["v1.0.0"], {}));
+      expect(r.code).toBe(1);
     });
   });
 
