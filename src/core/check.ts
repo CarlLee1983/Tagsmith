@@ -15,17 +15,34 @@ export interface CheckResult {
 
 /**
  * 驗證候選 tag 是否符合 pattern + model。純函式，無 IO。
- * 重複偵測於後續加入。
  */
 export function checkTags(
   pattern: CompiledPattern,
   model: VersionModel,
   candidates: readonly string[],
-  _existing: readonly string[],
+  existing: readonly string[],
 ): CheckResult {
+  // 既有 conforming 版本的鍵集合。
+  const seen = new Set<string>();
+  for (const raw of existing) {
+    const c = classify(raw, pattern, model);
+    if (c.conforming && c.version !== null) {
+      seen.add(model.format(c.version));
+    }
+  }
+
   const checks: TagCheck[] = candidates.map((tag) => {
     const c = classify(tag, pattern, model);
-    return { tag, ok: c.conforming, anomaly: c.anomaly };
+    if (!c.conforming) {
+      return { tag, ok: false, anomaly: c.anomaly };
+    }
+    const key = model.format(c.version);
+    if (seen.has(key)) {
+      return { tag, ok: false, anomaly: "duplicate-version" as const };
+    }
+    seen.add(key);
+    return { tag, ok: true, anomaly: null };
   });
+
   return { ok: checks.every((c) => c.ok), checks };
 }

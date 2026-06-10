@@ -30,3 +30,22 @@ describe("checkTags — format", () => {
     expect(r).toEqual({ ok: true, checks: [] });
   });
 });
+
+describe("checkTags — duplicates", () => {
+  it("flags a candidate duplicating an existing tag", () => {
+    const r = checkTags(pattern, model, ["v1.2.3"], ["v1.2.3"]);
+    expect(r.ok).toBe(false);
+    expect(r.checks[0].anomaly).toBe("duplicate-version");
+  });
+
+  it("flags the second of two duplicate candidates", () => {
+    const r = checkTags(pattern, model, ["v1.0.0", "v1.0.0"], []);
+    expect(r.checks[0].ok).toBe(true);
+    expect(r.checks[1].anomaly).toBe("duplicate-version");
+  });
+
+  it("ignores existing non-conforming tags when deduping", () => {
+    const r = checkTags(pattern, model, ["v1.2.3"], ["junk"]);
+    expect(r.ok).toBe(true);
+  });
+});
