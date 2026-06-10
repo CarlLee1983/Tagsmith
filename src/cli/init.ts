@@ -16,6 +16,7 @@ export interface InitFlags {
   push?: boolean;
   force?: boolean;
   yes?: boolean;
+  hints?: boolean;
 }
 
 /** Run the `init` command. Returns the process exit code. */
@@ -38,7 +39,7 @@ export async function runInit(cwd: string, flags: InitFlags): Promise<number> {
   const validated = parseConfig(config);
   await writeConfig(cwd, validated);
   success(`Wrote ${CONFIG_FILENAME}`);
-  printNextStepsAfterInit({});
+  if (flags.hints !== false) printNextStepsAfterInit({});
   return 0;
 }
 

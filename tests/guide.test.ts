@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { runGuide, type GuideIO } from "../src/cli/guide.js";
+import { runInit } from "../src/cli/init.js";
 import { configExists } from "../src/core/config.js";
 
 function gitInit(dir: string): void {
@@ -88,5 +89,13 @@ describe("runGuide", () => {
     expect(code).toBe(0);
     expect(await configExists(dir)).toBe(false);
     expect(io.notes.join("\n")).toMatch(/cancel/i);
+  });
+
+  it("skips init when a config already exists", async () => {
+    await runInit(dir, { yes: true });
+    const io = fakeIO([]);
+    const code = await runGuide(dir, io);
+    expect(code).toBe(0);
+    expect(io.notes.join("\n")).toMatch(/already exists/i);
   });
 });

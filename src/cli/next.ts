@@ -9,6 +9,7 @@ import { printFirstRunHint, printNextStepsAfterNext } from "./guidance.js";
 export interface NextFlags {
   level?: string;
   json?: boolean;
+  hints?: boolean;
 }
 
 const LEVELS: BumpLevel[] = ["major", "minor", "patch", "prerelease", "auto"];
@@ -51,7 +52,7 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
         `${color.cyan(plan.tag)} ${color.dim(`(from ${plan.fromVersion})`)}`,
       );
     }
-    printNextStepsAfterNext({ level, json: flags.json });
+    if (flags.hints !== false) printNextStepsAfterNext({ level, json: flags.json });
     return 0;
   } catch (err) {
     printError(err);

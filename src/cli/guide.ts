@@ -14,7 +14,7 @@ export interface GuideIO {
   isCancel(value: unknown): boolean;
 }
 
-/** Default GuideIO backed by @clack/prompts. */
+/** Default GuideIO backed by @clack/prompts; exercised only at runtime (unit tests inject a fake IO). */
 export const clackIO: GuideIO = {
   intro: (m) => p.intro(m),
   outro: (m) => p.outro(m),
@@ -53,7 +53,7 @@ export async function runGuide(
     if (answer === true) {
       // User already confirmed via io.confirm above, so run init
       // non-interactively with defaults (no second round of prompts).
-      const code = await runInit(cwd, { yes: true });
+      const code = await runInit(cwd, { yes: true, hints: false });
       if (code !== 0) {
         io.cancel("init did not complete. Re-run `tagsmith guide` to retry.");
         return 0;
@@ -74,7 +74,7 @@ export async function runGuide(
 
   // Step 3 - next (read-only preview)
   io.note("`tagsmith next` previews the next tag without creating it:");
-  await runNext(cwd, {});
+  await runNext(cwd, { hints: false });
 
   // Step 4 - create (explained only; we never create here)
   io.note(

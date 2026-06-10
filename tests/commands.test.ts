@@ -100,6 +100,12 @@ describe("command runners (in-process)", () => {
       expect(r.out).toMatch(/tagsmith list/);
       expect(r.out).toMatch(/tagsmith next/);
     });
+
+    it("suppresses next-step hints when hints:false", async () => {
+      const r = await capture(() => runInit(dir, { yes: true, hints: false }));
+      expect(r.code).toBe(0);
+      expect(r.out).not.toMatch(/Next step/);
+    });
   });
 
   describe("list", () => {
@@ -168,6 +174,13 @@ describe("command runners (in-process)", () => {
     it("stays silent (no hint) in JSON mode", async () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runNext(dir, { json: true }));
+      expect(r.out).not.toMatch(/Next step/);
+    });
+
+    it("suppresses the hint when hints:false but still previews the tag", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runNext(dir, { hints: false }));
+      expect(r.out).toContain("v0.1.0");
       expect(r.out).not.toMatch(/Next step/);
     });
 

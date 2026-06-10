@@ -17,7 +17,7 @@ export function printFirstRunHint(opts: JsonAware = {}): void {
   step("Define one", "tagsmith init");
 }
 
-export function printNextStepsAfterInit(opts: JsonAware): void {
+export function printNextStepsAfterInit(opts: JsonAware = {}): void {
   if (opts.json) return;
   info("");
   info(color.bold("Next steps:"));
