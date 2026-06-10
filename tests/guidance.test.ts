@@ -45,11 +45,18 @@ describe("guidance", () => {
     expect(out).toMatch(/tagsmith create -l minor/);
   });
 
-  it("after create without push suggests --push", () => {
+  it("after create without push suggests pushing the tag", () => {
+    const out = captureOut(() =>
+      printNextStepsAfterCreate({ pushed: false, tag: "v1.2.0" }),
+    );
+    expect(out).toMatch(/git push origin v1\.2\.0/);
+  });
+
+  it("after create without push and no tag suggests git push --tags", () => {
     const out = captureOut(() =>
       printNextStepsAfterCreate({ pushed: false }),
     );
-    expect(out).toMatch(/--push/);
+    expect(out).toMatch(/git push --tags/);
   });
 
   it("after create with push suggests list", () => {

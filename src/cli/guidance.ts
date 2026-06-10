@@ -35,14 +35,16 @@ export function printNextStepsAfterNext(
 }
 
 export function printNextStepsAfterCreate(
-  opts: JsonAware & { pushed: boolean },
+  opts: JsonAware & { pushed: boolean; tag?: string },
 ): void {
   if (opts.json) return;
   info("");
   info(color.bold("Next step:"));
   if (opts.pushed) {
     step("Review your tags", "tagsmith list");
+  } else if (opts.tag) {
+    step("Publish it", `git push origin ${opts.tag}`);
   } else {
-    step("Share it", "tagsmith create --push");
+    step("Publish it", "git push --tags");
   }
 }

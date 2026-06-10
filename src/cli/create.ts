@@ -67,7 +67,7 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
       await pushTag({ cwd, name: tagName });
       success(`Pushed ${tagName}`);
     }
-    printNextStepsAfterCreate({ pushed: willPush });
+    printNextStepsAfterCreate({ pushed: willPush, tag: tagName });
     return 0;
   } catch (err) {
     printError(err);

@@ -133,6 +133,7 @@ describe("command runners (in-process)", () => {
       const r = await capture(() => runList(dir, {}));
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/tagsmith init/);
+      expect(r.out).toMatch(/tagsmith init/);
     });
   });
 
@@ -236,10 +237,10 @@ describe("command runners (in-process)", () => {
       expect(r.err).toMatch(/already exists/);
     });
 
-    it("suggests --push after a non-pushed create", async () => {
+    it("suggests pushing the new tag after a non-pushed create", async () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runCreate(dir, {}));
-      expect(r.out).toMatch(/--push/);
+      expect(r.out).toMatch(/git push origin v0\.1\.0/);
     });
   });
 });
