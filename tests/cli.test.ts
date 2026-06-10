@@ -128,4 +128,23 @@ describe("tagsmith CLI (built binary)", () => {
     expect(r.code).toBe(1);
     expect(r.stderr).toMatch(/tagsmith init/);
   });
+
+  it("shows a welcome banner and first step in top-level help", () => {
+    const r = run(dir, ["--help"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/tagsmith init/);
+    expect(r.stdout).toMatch(/Examples/);
+  });
+
+  it("includes an examples block in create --help", () => {
+    const r = run(dir, ["create", "--help"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/Examples/);
+    expect(r.stdout).toMatch(/tagsmith create/);
+  });
+
+  it("registers the guide command", () => {
+    const r = run(dir, ["--help"]);
+    expect(r.stdout).toMatch(/guide/);
+  });
 });
