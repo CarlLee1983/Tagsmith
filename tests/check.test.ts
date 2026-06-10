@@ -48,4 +48,11 @@ describe("checkTags — duplicates", () => {
     const r = checkTags(pattern, model, ["v1.2.3"], ["junk"]);
     expect(r.ok).toBe(true);
   });
+
+  it("ok is false when any candidate fails", () => {
+    const r = checkTags(pattern, model, ["v1.0.0", "junk"], []);
+    expect(r.ok).toBe(false);
+    expect(r.checks[0].ok).toBe(true);
+    expect(r.checks[1].ok).toBe(false);
+  });
 });

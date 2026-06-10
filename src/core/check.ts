@@ -38,7 +38,7 @@ export function checkTags(
     }
     const key = model.format(c.version);
     if (seen.has(key)) {
-      return { tag, ok: false, anomaly: "duplicate-version" as const };
+      return { tag, ok: false, anomaly: "duplicate-version" };
     }
     seen.add(key);
     return { tag, ok: true, anomaly: null };
