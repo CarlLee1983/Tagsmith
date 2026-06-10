@@ -146,6 +146,10 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 |------|------|
 | `--json` | 輸出結構化 JSON |
 
+`--json` 輸出格式：
+- 指定 tag 時：`{ "ok": boolean, "checks": [{ "tag": string, "ok": boolean, "anomaly": string | null }] }`
+- 不帶參數（lint 全 repo）時：`{ "ok": boolean, "anomalies": [{ "tag": string, "anomaly": string }] }`
+
 ### `tagsmith next`
 計算並印出下一個 tag，**不**實際建立。保證結果嚴格大於目前最大合規版本；
 無既有合規 tag 時改用 `initialVersion`。

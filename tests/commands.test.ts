@@ -213,6 +213,13 @@ describe("command runners (in-process)", () => {
       expect(parsed.ok).toBe(false);
       expect(parsed.checks[0]).toEqual({ tag: "junk", ok: false, anomaly: "pattern-mismatch" });
     });
+
+    it("explicit --json output is pure JSON (no decorated lines)", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runCheck(dir, ["v1.2.3"], { json: true }));
+      expect(() => JSON.parse(r.out)).not.toThrow();
+      expect(r.out).not.toMatch(/ ok$/m);
+    });
   });
 
   describe("next", () => {

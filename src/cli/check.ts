@@ -1,6 +1,8 @@
 import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
+import type { CompiledPattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
+import type { VersionModel } from "../types.js";
 import { checkTags } from "../core/check.js";
 import { analyzeTags } from "../core/analyze.js";
 import { ensureRepo, listTags, GitError } from "../git/git.js";
@@ -34,8 +36,8 @@ export async function runCheck(
 
 async function runExplicit(
   cwd: string,
-  pattern: ReturnType<typeof compilePattern>,
-  model: ReturnType<typeof createModel>,
+  pattern: CompiledPattern,
+  model: VersionModel,
   tags: string[],
   flags: CheckFlags,
 ): Promise<number> {
@@ -67,8 +69,8 @@ async function runExplicit(
 
 async function runLint(
   cwd: string,
-  pattern: ReturnType<typeof compilePattern>,
-  model: ReturnType<typeof createModel>,
+  pattern: CompiledPattern,
+  model: VersionModel,
   flags: CheckFlags,
 ): Promise<number> {
   await ensureRepo({ cwd });

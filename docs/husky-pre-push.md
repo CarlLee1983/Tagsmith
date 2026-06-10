@@ -32,7 +32,7 @@ npx tagsmith check $tags
 ## 行為說明
 
 - 僅在推送內容包含 tag（`refs/tags/*`）時觸發；純 branch 推送直接放行。
-- 刪除 tag（`local_ref` 非 `refs/tags/*`）不受影響。
+- 刪除 tag 時 git 傳入的 local ref 為 `(delete)`（非 `refs/tags/*`），因此不會觸發檢查。
 - 任一 tag 不符 pattern、版本不可解析、或與既有 tag 重複版本時，`tagsmith check`
   回非零 exit code，husky 即中止 push。
 
