@@ -76,7 +76,7 @@ program
     process.exitCode = await runNext(process.cwd(), opts);
   });
 
-program
+const createCommand = program
   .command("create")
   .description("Create the next (or an explicit) git tag")
   .option(
@@ -96,18 +96,16 @@ program
     process.exitCode = await runCreate(process.cwd(), opts);
   });
 
-program.commands
-  .find((c) => c.name() === "create")
-  ?.addHelpText(
-    "after",
-    `
+createCommand.addHelpText(
+  "after",
+  `
 Examples:
   $ tagsmith create                        Create the next patch tag
   $ tagsmith create -l minor -m "..."      Create an annotated minor tag
   $ tagsmith create --set-version 2.0.0    Create an explicit version
   $ tagsmith create --dry-run              Preview without creating
 `,
-  );
+);
 
 program.parseAsync(process.argv).catch((err) => {
   printError(err);
