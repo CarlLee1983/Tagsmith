@@ -170,6 +170,41 @@ describe("command runners (in-process)", () => {
       const r = await capture(() => runCheck(dir, ["v1.0.0"], {}));
       expect(r.code).toBe(1);
     });
+
+    it("lints all repo tags — passes when all conform (exit 0)", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "v1.0.0");
+      tag(dir, "v1.1.0");
+      const r = await capture(() => runCheck(dir, [], {}));
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/conform/);
+    });
+
+    it("lints all repo tags — fails on anomaly (exit 1)", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "v1.0.0");
+      tag(dir, "junk");
+      const r = await capture(() => runCheck(dir, [], {}));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/junk/);
+    });
+
+    it("lint mode emits JSON", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "junk");
+      const r = await capture(() => runCheck(dir, [], { json: true }));
+      const parsed = JSON.parse(r.out);
+      expect(parsed.ok).toBe(false);
+      expect(parsed.anomalies[0].tag).toBe("junk");
+    });
+
+    it("explicit mode emits JSON", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runCheck(dir, ["v1.2.3"], { json: true }));
+      const parsed = JSON.parse(r.out);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.checks[0]).toEqual({ tag: "v1.2.3", ok: true, anomaly: null });
+    });
   });
 
   describe("next", () => {
