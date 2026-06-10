@@ -1,10 +1,11 @@
-import { loadConfig } from "../core/config.js";
+import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { planNext, validateExplicit } from "../core/plan.js";
 import { createTag, ensureRepo, listTags, pushTag } from "../git/git.js";
 import type { BumpLevel } from "../types.js";
 import { color, printError, success, warn } from "./ui.js";
+import { printFirstRunHint, printNextStepsAfterCreate } from "./guidance.js";
 
 export interface CreateFlags {
   level?: string;
@@ -61,13 +62,16 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
     await createTag({ cwd, name: tagName, message: flags.message });
     success(`Created tag ${color.cyan(tagName)}`);
 
-    if (flags.push ?? config.push) {
+    const willPush = flags.push ?? config.push;
+    if (willPush) {
       await pushTag({ cwd, name: tagName });
       success(`Pushed ${tagName}`);
     }
+    printNextStepsAfterCreate({ pushed: willPush });
     return 0;
   } catch (err) {
     printError(err);
+    if (err instanceof MissingConfigError) printFirstRunHint();
     return 1;
   }
 }

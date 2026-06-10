@@ -7,6 +7,7 @@ import {
 } from "../core/config.js";
 import type { ModelConfig, TagsmithConfig } from "../types.js";
 import { printError, success } from "./ui.js";
+import { printNextStepsAfterInit } from "./guidance.js";
 
 export interface InitFlags {
   pattern?: string;
@@ -37,6 +38,7 @@ export async function runInit(cwd: string, flags: InitFlags): Promise<number> {
   const validated = parseConfig(config);
   await writeConfig(cwd, validated);
   success(`Wrote ${CONFIG_FILENAME}`);
+  printNextStepsAfterInit({});
   return 0;
 }
 

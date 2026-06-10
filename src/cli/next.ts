@@ -1,9 +1,10 @@
-import { loadConfig } from "../core/config.js";
+import { loadConfig, MissingConfigError } from "../core/config.js";
 import { createModel } from "../core/models/index.js";
 import { planNext } from "../core/plan.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import type { BumpLevel } from "../types.js";
 import { color, info, printError, warn } from "./ui.js";
+import { printFirstRunHint, printNextStepsAfterNext } from "./guidance.js";
 
 export interface NextFlags {
   level?: string;
@@ -50,9 +51,11 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
         `${color.cyan(plan.tag)} ${color.dim(`(from ${plan.fromVersion})`)}`,
       );
     }
+    printNextStepsAfterNext({ level, json: flags.json });
     return 0;
   } catch (err) {
     printError(err);
+    if (err instanceof MissingConfigError) printFirstRunHint({ json: flags.json });
     return 1;
   }
 }

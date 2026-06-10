@@ -94,6 +94,12 @@ describe("command runners (in-process)", () => {
         await rm(d, { recursive: true, force: true });
       }
     });
+
+    it("prints next-step hints after success", async () => {
+      const r = await capture(() => runInit(dir, { yes: true }));
+      expect(r.out).toMatch(/tagsmith list/);
+      expect(r.out).toMatch(/tagsmith next/);
+    });
   });
 
   describe("list", () => {
@@ -150,6 +156,25 @@ describe("command runners (in-process)", () => {
       const r = await capture(() => runNext(dir, { level: "bogus" }));
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/Invalid level/);
+    });
+
+    it("suggests create with the same level after success", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runNext(dir, { level: "minor" }));
+      expect(r.out).toMatch(/tagsmith create -l minor/);
+    });
+
+    it("stays silent (no hint) in JSON mode", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runNext(dir, { json: true }));
+      expect(r.out).not.toMatch(/Next step/);
+    });
+
+    it("shows the first-run hint when no config", async () => {
+      const r = await capture(() => runNext(dir, {}));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/tagsmith init/);
+      expect(r.out).toMatch(/tagsmith init/);
     });
   });
 
@@ -209,6 +234,12 @@ describe("command runners (in-process)", () => {
       );
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/already exists/);
+    });
+
+    it("suggests --push after a non-pushed create", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runCreate(dir, {}));
+      expect(r.out).toMatch(/--push/);
     });
   });
 });
