@@ -51,6 +51,8 @@ export async function runGuide(
       return 0;
     }
     if (answer === true) {
+      // User already confirmed via io.confirm above, so run init
+      // non-interactively with defaults (no second round of prompts).
       const code = await runInit(cwd, { yes: true });
       if (code !== 0) {
         io.cancel("init did not complete. Re-run `tagsmith guide` to retry.");

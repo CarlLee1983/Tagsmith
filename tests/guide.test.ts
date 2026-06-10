@@ -35,7 +35,7 @@ function fakeIO(answers: boolean[]): GuideIO & { notes: string[] } {
 
 describe("runGuide", () => {
   let dir: string;
-  let outSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: ReturnType<typeof vi.spyOn<typeof process.stdout, "write">>;
 
   beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), "tagsmith-guide-"));
@@ -71,5 +71,22 @@ describe("runGuide", () => {
       .toString()
       .trim();
     expect(tags).toBe("");
+  });
+
+  it("exits cleanly with code 0 when the user cancels", async () => {
+    const cancelSymbol = Symbol("cancel");
+    const io: GuideIO & { notes: string[] } = {
+      notes: [],
+      intro: () => {},
+      outro: () => {},
+      note: (msg: string) => { io.notes.push(msg); },
+      cancel: (msg: string) => { io.notes.push(msg); },
+      confirm: async () => cancelSymbol,
+      isCancel: (v: unknown) => v === cancelSymbol,
+    };
+    const code = await runGuide(dir, io);
+    expect(code).toBe(0);
+    expect(await configExists(dir)).toBe(false);
+    expect(io.notes.join("\n")).toMatch(/cancel/i);
   });
 });
