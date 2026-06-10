@@ -138,6 +138,14 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 }
 ```
 
+### `tagsmith check`
+驗證指定 tag 是否符合規格；不帶參數時檢查 repo 內所有既有 tag。
+適合用於 CI 或 git hook（exit 0 = 全部合規，exit 1 = 發現異常）。
+
+| 旗標 | 說明 |
+|------|------|
+| `--json` | 輸出結構化 JSON |
+
 ### `tagsmith next`
 計算並印出下一個 tag，**不**實際建立。保證結果嚴格大於目前最大合規版本；
 無既有合規 tag 時改用 `initialVersion`。
@@ -183,6 +191,11 @@ tagsmith create --set-version 1.0.5 --allow-out-of-order
 # 先看會發生什麼，不動 repo
 tagsmith create -l major --dry-run
 ```
+
+## 搭配 husky 守 tag
+
+可用 git `pre-push` hook 在推送時自動驗證 tag，擋下不符規格者。
+詳見 [docs/husky-pre-push.md](docs/husky-pre-push.md)。
 
 ## 結束代碼
 
