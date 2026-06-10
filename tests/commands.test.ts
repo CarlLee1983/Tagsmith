@@ -311,6 +311,87 @@ describe("command runners (in-process)", () => {
     });
   });
 
+  describe("list --all", () => {
+    it("groups tags per line and surfaces orphans in human-readable output", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+      tag(dir, "legacy-tag");
+
+      const r = await capture(() => runList(dir, { all: true }));
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/app/);
+      expect(r.out).toMatch(/release/);
+      expect(r.out).toMatch(/v1\.0\.0/);
+      expect(r.out).toMatch(/release\/3/);
+      // orphan section
+      expect(r.out).toMatch(/legacy-tag/);
+    });
+
+    it("--json --all outputs { lines, orphans } shape", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+      tag(dir, "legacy-tag");
+
+      const r = await capture(() => runList(dir, { all: true, json: true }));
+      expect(r.code).toBe(0);
+      const parsed = JSON.parse(r.out);
+      // top-level keys
+      expect(parsed).toHaveProperty("lines");
+      expect(parsed).toHaveProperty("orphans");
+      // lines array: one entry per tag line
+      expect(parsed.lines).toHaveLength(2);
+      const appEntry = parsed.lines.find((l: { line: string }) => l.line === "app");
+      const releaseEntry = parsed.lines.find((l: { line: string }) => l.line === "release");
+      expect(appEntry).toBeDefined();
+      expect(releaseEntry).toBeDefined();
+      expect(appEntry.conforming.map((t: { tag: string }) => t.tag)).toContain("v1.0.0");
+      expect(releaseEntry.conforming.map((t: { tag: string }) => t.tag)).toContain("release/3");
+      // orphans array
+      expect(parsed.orphans).toContain("legacy-tag");
+    });
+
+    it("list --all with no orphans omits orphans section in human output", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runList(dir, { all: true }));
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/v1\.0\.0/);
+      expect(r.out).not.toMatch(/[Oo]rphan/);
+    });
+  });
+
   describe("create", () => {
     it("creates the next tag", async () => {
       await runInit(dir, { yes: true });

@@ -61,6 +61,8 @@ program
   .alias("ls")
   .description("List git tags, sorted and validated against the spec")
   .option("--json", "output JSON")
+  .option("-t, --tag <name>", "list only the named tag line")
+  .option("--all", "list every tag line plus unassigned tags")
   .action(async (opts) => {
     process.exitCode = await runList(process.cwd(), opts);
   });
