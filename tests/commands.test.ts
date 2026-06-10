@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -268,6 +268,46 @@ describe("command runners (in-process)", () => {
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/tagsmith init/);
       expect(r.out).toMatch(/tagsmith init/);
+    });
+
+    it("next --tag selects the named line and outputs line in JSON", async () => {
+      // Multi-line config: app (semver v{version}), release (build release/{version})
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/7");
+
+      const r = await capture(() => runNext(dir, { tag: "release", json: true }));
+      expect(r.code).toBe(0);
+      const json = JSON.parse(r.out);
+      expect(json.line).toBe("release");
+      expect(json.tag).toBe("release/8");
+    });
+
+    it("next with unknown --tag exits 1 with Available: in stderr", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runNext(dir, { tag: "ghost" }));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/Available:/);
     });
   });
 

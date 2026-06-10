@@ -74,6 +74,10 @@ program
     "patch",
   )
   .option("--json", "output JSON")
+  .option(
+    "-t, --tag <name>",
+    "operate on the named tag line (default: the config's default line)",
+  )
   .action(async (opts) => {
     process.exitCode = await runNext(process.cwd(), opts);
   });
@@ -104,6 +108,10 @@ const createCommand = program
   .option("--push", "push the tag after creating")
   .option("--dry-run", "preview without creating")
   .option("--allow-out-of-order", "permit a version not greater than latest")
+  .option(
+    "-t, --tag <name>",
+    "operate on the named tag line (default: the config's default line)",
+  )
   .action(async (opts) => {
     process.exitCode = await runCreate(process.cwd(), opts);
   });
