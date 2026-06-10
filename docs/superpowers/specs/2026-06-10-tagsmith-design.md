@@ -88,7 +88,7 @@ type BumpLevel = "major" | "minor" | "patch" | "prerelease" | "auto"
 讀 config → `git tag -l` → 對每個 tag 套 pattern 解析：
 - **合規**：符合 pattern 且版本可解析 → 依 compare 由新到舊排序。
 - **異常**：不符 pattern / 版本無法解析 / 重複版本 → 標示原因。
-輸出表格（含最新版本標記）；`--json` 輸出結構化資料；`--all` 含異常項。
+輸出表格（含最新版本標記）；異常項一律列出；`--json` 輸出結構化資料。
 
 ### `tagsmith next`
 讀 config → 找出最新合規版本 → 依 `--level`（semver 預設 patch）bump → 套 pattern。

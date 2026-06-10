@@ -29,6 +29,7 @@
     "versioning"
   ],
   "license": "MIT",
+  "author": "carl",
   "engines": {
     "node": ">=18"
   },
