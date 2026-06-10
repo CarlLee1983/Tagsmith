@@ -205,6 +205,14 @@ describe("command runners (in-process)", () => {
       expect(parsed.ok).toBe(true);
       expect(parsed.checks[0]).toEqual({ tag: "v1.2.3", ok: true, anomaly: null });
     });
+
+    it("explicit mode emits JSON for non-conforming tag", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runCheck(dir, ["junk"], { json: true }));
+      const parsed = JSON.parse(r.out);
+      expect(parsed.ok).toBe(false);
+      expect(parsed.checks[0]).toEqual({ tag: "junk", ok: false, anomaly: "pattern-mismatch" });
+    });
   });
 
   describe("next", () => {

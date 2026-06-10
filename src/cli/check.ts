@@ -83,7 +83,7 @@ async function runLint(
           ok,
           anomalies: analysis.anomalies.map((t) => ({
             tag: t.raw,
-            reason: t.anomaly,
+            anomaly: t.anomaly,
           })),
         },
         null,
@@ -97,6 +97,8 @@ async function runLint(
     success(`All ${analysis.conforming.length} tag(s) conform to the spec.`);
     return 0;
   }
+  // check is a gate: failures go to stderr so the exit code is the signal
+  // (intentionally unlike `list`, which prints anomalies to stdout).
   for (const t of analysis.anomalies) {
     printError(`${t.raw} (${t.anomaly})`);
   }
