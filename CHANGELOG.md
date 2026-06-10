@@ -27,5 +27,5 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/carl/tagsmith/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/carl/tagsmith/releases/tag/v0.1.0
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/CarlLee1983/Tagsmith/releases/tag/v0.1.0
