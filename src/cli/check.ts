@@ -2,10 +2,10 @@ import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import type { CompiledPattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
-import type { VersionModel } from "../types.js";
+import type { TagLine, VersionModel } from "../types.js";
 import { checkTags } from "../core/check.js";
 import { analyzeTags } from "../core/analyze.js";
-import { selectLine } from "../core/lines.js";
+import { assignTagsToLines, selectLine } from "../core/lines.js";
 import { ensureRepo, listTags, GitError } from "../git/git.js";
 import { color, info, printError, success } from "./ui.js";
 import { printFirstRunHint } from "./guidance.js";
@@ -29,7 +29,7 @@ export async function runCheck(
     if (tags.length > 0) {
       return await runExplicit(cwd, pattern, model, tags, flags);
     }
-    return await runLint(cwd, pattern, model, flags);
+    return await runLint(cwd, pattern, model, flags, config.lines, line.name);
   } catch (err) {
     printError(err);
     if (err instanceof MissingConfigError) printFirstRunHint({ json: flags.json });
@@ -75,9 +75,18 @@ async function runLint(
   pattern: CompiledPattern,
   model: VersionModel,
   flags: CheckFlags,
+  lines: TagLine[],
+  lineName: string,
 ): Promise<number> {
   await ensureRepo({ cwd });
-  const tags = await listTags({ cwd });
+  const allTags = await listTags({ cwd });
+  // Single-line config: feed allTags so non-matching tags show as pattern-mismatch
+  // (backward-compat). Multi-line config: feed only the selected line's bucket
+  // (spec 5.3); cross-line check is a later task.
+  const tags =
+    lines.length === 1
+      ? allTags
+      : (assignTagsToLines(allTags, lines).byLine.get(lineName) ?? []);
   const analysis = analyzeTags(tags, pattern, model);
   const ok = analysis.anomalies.length === 0;
 

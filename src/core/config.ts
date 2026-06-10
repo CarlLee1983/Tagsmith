@@ -154,6 +154,8 @@ export async function writeConfig(
     })),
     default: config.default,
   };
+  // Never persist a broken config: validate the on-disk shape first.
+  parseConfig(fileShape);
   const body = JSON.stringify(fileShape, null, 2);
   await writeFile(file, `${body}\n`, "utf8");
 }

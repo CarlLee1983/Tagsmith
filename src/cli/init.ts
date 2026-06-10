@@ -2,7 +2,6 @@ import * as p from "@clack/prompts";
 import {
   CONFIG_FILENAME,
   configExists,
-  parseConfig,
   writeConfig,
 } from "../core/config.js";
 import type { ModelConfig, TagsmithConfig } from "../types.js";
