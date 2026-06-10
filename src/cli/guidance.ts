@@ -10,7 +10,8 @@ function step(label: string, command: string): void {
 }
 
 /** Shown when a command needs a config but none exists yet. */
-export function printFirstRunHint(): void {
+export function printFirstRunHint(opts: JsonAware = {}): void {
+  if (opts.json) return;
   info("");
   info(color.bold("No tag spec yet."));
   step("Define one", "tagsmith init");

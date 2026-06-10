@@ -28,6 +28,10 @@ describe("guidance", () => {
     expect(out).toMatch(/tagsmith init/);
   });
 
+  it("first-run hint is silent in JSON mode", () => {
+    expect(captureOut(() => printFirstRunHint({ json: true }))).toBe("");
+  });
+
   it("after init suggests list and next", () => {
     const out = captureOut(() => printNextStepsAfterInit({}));
     expect(out).toMatch(/tagsmith list/);
