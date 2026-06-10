@@ -19,7 +19,7 @@
 - 新增 `src/cli/guidance.ts`:集中所有引導文案與輸出函式。
   - 提示性輸出走 **stdout**;錯誤情境的引導走 **stderr**(沿用 `ui.ts`)。
   - **`--json` 模式完全靜默**,保住「JSON 只印 JSON」鐵則。
-- 文案使用 Traditional Chinese(台灣用語),配色沿用 `ui.ts` 的 picocolors。
+- 使用者可見字串使用**英文**,與現有 CLI 字串(`Wrote .tagsmith.json`、`No tags found` 等)風格一致;配色沿用 `ui.ts` 的 picocolors。(本檔等說明文件仍用中文。)
 - 不更動現有四個指令的核心邏輯,只在成功結尾「呼叫」引導函式。
 
 ## 元件
