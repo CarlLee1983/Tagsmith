@@ -23,11 +23,11 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
     const allTags = await listTags({ cwd });
     const assignment = assignTagsToLines(allTags, config.lines);
     const lineTags = assignment.byLine.get(line.name) ?? [];
-    // In single-line mode, include orphans so they appear as pattern-mismatch anomalies
-    // (backward-compatible: old single-line behaviour reported all non-matching tags).
-    const tagsForAnalysis = config.lines.length === 1
-      ? allTags
-      : [...lineTags, ...assignment.orphans];
+    // Single-line config: feed allTags so non-matching tags appear as pattern-mismatch
+    // anomalies — preserves backward-compatible behaviour (allTags === lineTags + orphans).
+    // Multi-line config: feed only this line's own bucket (spec 5.3); orphans belong to
+    // the future `list --all` view and must NOT pollute a single-line analysis.
+    const tagsForAnalysis = config.lines.length === 1 ? allTags : lineTags;
     const analysis = analyzeTags(tagsForAnalysis, pattern, model);
 
     if (flags.json) {
