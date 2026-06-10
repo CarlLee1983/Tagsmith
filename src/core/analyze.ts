@@ -53,7 +53,7 @@ export function analyzeTags(
   };
 }
 
-function classify(
+export function classify(
   raw: string,
   pattern: CompiledPattern,
   model: VersionModel,
