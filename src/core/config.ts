@@ -34,6 +34,8 @@ const configSchema = z.object({
 });
 
 export class ConfigError extends Error {}
+/** Thrown by loadConfig when no config file exists (vs. a malformed one). */
+export class MissingConfigError extends ConfigError {}
 
 /** Parse and validate a raw config object. Throws ConfigError on failure. */
 export function parseConfig(raw: unknown): TagsmithConfig {
@@ -67,7 +69,7 @@ export async function loadConfig(cwd: string): Promise<TagsmithConfig> {
   try {
     text = await readFile(file, "utf8");
   } catch {
-    throw new ConfigError(
+    throw new MissingConfigError(
       `No ${CONFIG_FILENAME} found in ${cwd}. Run \`tagsmith init\` first.`,
     );
   }
