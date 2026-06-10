@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/CMG/tagsmith/schema.json",
+  "title": "Tagsmith config",
+  "description": "Tag specification for the tagsmith CLI (.tagsmith.json).",
+  "type": "object",
+  "required": ["pattern", "model", "initialVersion"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "pattern": {
+      "type": "string",
+      "description": "Tag template; must contain the {version} placeholder.",
+      "pattern": "\\{version\\}"
+    },
+    "model": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "semver" },
+            "allowPrerelease": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "format"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "calver" },
+            "format": {
+              "type": "string",
+              "description": "Token sequence using YYYY YY MM DD MICRO, e.g. YYYY.MM.MICRO."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "build" },
+            "padding": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "initialVersion": {
+      "type": "string",
+      "description": "Version used when no conforming tag exists yet."
+    },
+    "push": {
+      "type": "boolean",
+      "description": "Default push behaviour for `tagsmith create`."
+    }
+  }
+}
