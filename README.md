@@ -25,6 +25,9 @@ npx tagsmith <command>
 # 1. 在 repo 內定義 tag 規格（互動式）
 tagsmith init
 
+# 不熟指令？走一次互動式導覽
+tagsmith guide
+
 # 2. 檢視現有 tag（依語義排序、標示異常）
 tagsmith list
 

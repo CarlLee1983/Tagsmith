@@ -1,9 +1,10 @@
-import { loadConfig } from "../core/config.js";
+import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { analyzeTags } from "../core/analyze.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import { color, info, printError, warn } from "./ui.js";
+import { printFirstRunHint } from "./guidance.js";
 
 export interface ListFlags {
   json?: boolean;
@@ -63,6 +64,7 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
     return 0;
   } catch (err) {
     printError(err);
+    if (err instanceof MissingConfigError) printFirstRunHint({ json: flags.json });
     return 1;
   }
 }
