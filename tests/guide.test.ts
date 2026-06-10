@@ -35,7 +35,7 @@ function fakeIO(answers: boolean[]): GuideIO & { notes: string[] } {
 
 describe("runGuide", () => {
   let dir: string;
-  let outSpy: ReturnType<typeof vi.spyOn<typeof process.stdout, "write">>;
+  let outSpy: { mockRestore(): void };
 
   beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), "tagsmith-guide-"));
