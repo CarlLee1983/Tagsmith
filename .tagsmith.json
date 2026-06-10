@@ -1,0 +1,9 @@
+{
+  "pattern": "v{version}",
+  "model": {
+    "type": "semver",
+    "allowPrerelease": true
+  },
+  "initialVersion": "0.1.0",
+  "push": false
+}
