@@ -11,6 +11,7 @@
 - 🛡️ **防呆** — 建立前驗證格式、版本可解析、嚴格遞增、tag 不重複
 - 🚀 **零設定** — 無設定檔時自動以 semver 推斷 pattern，讀 repo 既有 tag 即可用
 - 🧩 **可擴充** — 版本模型走介面抽象，新增不動核心邏輯
+- 🚧 **合併護欄** — 以 `mergePolicy` 限制受保護分支的合併來源（白 / 黑名單），由 git hook 自動把關
 
 ## 安裝
 
@@ -324,6 +325,81 @@ tagsmith list --all
 
 可用 git `pre-push` hook 在推送時自動驗證 tag，擋下不符規格者。
 詳見 [docs/husky-pre-push.md](docs/husky-pre-push.md)（需安裝 `@carllee1983/tagsmith`）。
+
+## 合併政策（merge policy）
+
+除了管 tag，Tagsmith 也能當 **git 工作流護欄**：限制哪些分支可以合併進受保護分支，
+避免誤把 `develop`、`feature/*` 直接併進 `main`。規則寫在 `.tagsmith.json` 的
+`mergePolicy` 區塊，由本機 git hook（`prepare-commit-msg` / `post-merge`）自動執行——
+**純本機檢查，不涉及 PR 或遠端 server 端政策**。
+
+### 設定
+
+```jsonc
+{
+  "pattern": "v{version}",          // 既有 tag 設定不受影響
+  "model": { "type": "semver" },
+  "initialVersion": "0.1.0",
+
+  "mergePolicy": {
+    "protectedBranches": {
+      "develop": { "allow": ["main"] },                    // 白名單：只准 main 併入
+      "main":    { "deny":  ["develop", "testing", "feature/*"] }, // 黑名單：擋這些
+      "testing": { "deny":  ["develop", "main"] }
+    },
+    "onUnknownSource": "block"        // 無法解析來源時：block（預設）| allow
+  }
+}
+```
+
+規則：
+
+- `mergePolicy` **選配**，缺省即關閉，對既有使用者完全向後相容。
+- `protectedBranches` 的 key 是受保護分支名；**只有目前所在分支落在清單時才檢查**，
+  其餘分支一律放行。
+- 每個受保護分支**二選一**：
+  - `allow`（白名單）— 只允許名單內來源合併進來，其餘封鎖。
+  - `deny`（黑名單）— 名單內來源封鎖，其餘放行。
+  - 同時提供或兩者皆缺 → 設定驗證錯誤。
+- 來源比對支援萬用字元：`*` 比對任意字元（**含 `/`**，可跨多層），`?` 比對單一字元；
+  例如 `feature/*`、`hotfix/*`。
+- `onUnknownSource` — 無法解析合併來源分支時的行為，預設 `block`。
+
+### 安裝 hooks
+
+```bash
+npm install -D @carllee1983/tagsmith   # 先把套件裝進專案
+npx tagsmith hooks install             # 寫入 git hooks
+```
+
+`hooks install` 會偵測 hook 機制：有 `.husky/` 目錄則寫入 husky，否則寫入 `.git/hooks/`。
+寫入的 hook 只負責呼叫 `tagsmith merge-check`，內容帶有 `# tagsmith-merge-policy (managed)`
+標記。若目標位置已有非 tagsmith 管理的 hook，預設中止（**不寫入任何檔案**），需加 `--force` 覆寫。
+移除用 `tagsmith hooks uninstall`（只移除帶標記的檔案，不動其他 hook）。
+
+### 攔截行為
+
+當合併違反政策時：
+
+- **建立 merge commit**（`prepare-commit-msg`，尚未 commit）— 無法乾淨回滾，直接中止，
+  提示 `git merge --abort`。
+- **fast-forward 合併**（`post-merge`，HEAD 已前進）— 自動 `git reset --hard ORIG_HEAD`
+  回到合併前狀態。
+
+訊息會列出 target 分支、source 分支與封鎖原因。緊急時可用環境變數略過檢查：
+
+```bash
+TAGSMITH_SKIP=1 git merge ...   # 略過一次（緊急用）
+HUSKY=0 git merge ...           # 同樣略過
+```
+
+### 相關指令
+
+| 指令 | 說明 |
+|------|------|
+| `tagsmith hooks install [--force]` | 安裝 merge-policy git hooks（`--force` 覆寫既有非 tagsmith hook） |
+| `tagsmith hooks uninstall` | 移除 tagsmith 管理的 hooks |
+| `tagsmith merge-check [--mode <merge-head\|post-merge>]` | 由 hook 呼叫，套用政策；非日常手動輸入 |
 
 ## 結束代碼
 

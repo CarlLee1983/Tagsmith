@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-11
+
+### 新增
+
+- **合併政策（merge policy）**：Tagsmith 從「tag 工具」延伸為 git 工作流護欄。
+  新增 `.tagsmith.json` 選配 `mergePolicy` 區塊，限制受保護分支的合併來源
+  （`allow` 白名單 / `deny` 黑名單，二選一），來源比對支援 glob（`*`、`?`）。
+  選配且缺省即關閉，對既有使用者完全向後相容。
+- `merge-check` 指令：由 git hook 呼叫，讀取 git 狀態解析合併來源並套用政策。
+  違規時 `merge-head` 模式中止並提示 `git merge --abort`；`post-merge` 模式（fast-forward）
+  自動 `git reset --hard ORIG_HEAD` 回滾。支援 `--mode merge-head|post-merge`。
+- `hooks install [--force]` / `hooks uninstall` 指令：把呼叫 `merge-check` 的
+  `prepare-commit-msg` / `post-merge` hook 寫入專案（偵測 `.husky/`，否則 `.git/hooks/`）。
+  安裝具原子性——任一 hook 為外來內容時預設中止且不寫入任何檔案，需 `--force` 覆寫；
+  uninstall 只移除帶 `# tagsmith-merge-policy (managed)` 標記的 hook。
+- 環境變數 `TAGSMITH_SKIP=1` 或 `HUSKY=0` 可緊急略過合併檢查。
+- `schema.json` 擴充 `mergePolicy` 結構，提供編輯器補全與驗證。
+
 ## [0.2.1] - 2026-06-11
 
 ### 修正
@@ -62,7 +80,8 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/CarlLee1983/Tagsmith/releases/tag/v0.1.0
