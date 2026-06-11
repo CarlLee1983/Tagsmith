@@ -90,6 +90,7 @@ program
     "Validate tags against the spec; with no args, lint all repo tags",
   )
   .option("--json", "output JSON")
+  .option("-t, --tag <name>", "validate only against the named tag line")
   .action(async (tags: string[], opts) => {
     process.exitCode = await runCheck(process.cwd(), tags, opts);
   });
