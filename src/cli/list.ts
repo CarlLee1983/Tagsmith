@@ -1,4 +1,3 @@
-import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { analyzeTags } from "../core/analyze.js";
@@ -6,7 +5,8 @@ import type { Analysis } from "../core/analyze.js";
 import { assignTagsToLines, selectLine } from "../core/lines.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import { color, info, printError, warn } from "./ui.js";
-import { printFirstRunHint } from "./guidance.js";
+import { resolveConfig } from "./resolve-config.js";
+import { implicitConfigJson, printImplicitConfigNotice } from "./implicit.js";
 
 export interface ListFlags {
   json?: boolean;
@@ -69,7 +69,8 @@ function printOrphans(orphans: readonly string[]): void {
 
 export async function runList(cwd: string, flags: ListFlags): Promise<number> {
   try {
-    const config = await loadConfig(cwd);
+    const resolved = await resolveConfig(cwd);
+    const { config } = resolved;
     await ensureRepo({ cwd });
     const allTags = await listTags({ cwd });
     const assignment = assignTagsToLines(allTags, config.lines);
@@ -93,6 +94,7 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
             {
               lines,
               orphans: assignment.orphans,
+              ...implicitConfigJson(resolved),
             },
             null,
             2,
@@ -129,9 +131,17 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
     const analysis = analyzeTags(tagsForAnalysis, pattern, model);
 
     if (flags.json) {
-      info(JSON.stringify({ line: line.name, ...analysisToJson(analysis) }, null, 2));
+      info(
+        JSON.stringify(
+          { line: line.name, ...analysisToJson(analysis), ...implicitConfigJson(resolved) },
+          null,
+          2,
+        ),
+      );
       return 0;
     }
+
+    printImplicitConfigNotice(resolved, flags.json);
 
     if (analysis.conforming.length === 0 && analysis.anomalies.length === 0) {
       info("No tags found.");
@@ -142,7 +152,6 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
     return 0;
   } catch (err) {
     printError(err);
-    if (err instanceof MissingConfigError) printFirstRunHint({ json: flags.json });
     return 1;
   }
 }

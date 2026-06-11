@@ -1,4 +1,3 @@
-import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { planNext, validateExplicit } from "../core/plan.js";
@@ -6,7 +5,9 @@ import { assignTagsToLines, selectLine } from "../core/lines.js";
 import { createTag, ensureRepo, listTags, pushTag } from "../git/git.js";
 import type { BumpLevel } from "../types.js";
 import { color, printError, success, warn } from "./ui.js";
-import { printFirstRunHint, printNextStepsAfterCreate } from "./guidance.js";
+import { printNextStepsAfterCreate } from "./guidance.js";
+import { resolveConfig } from "./resolve-config.js";
+import { printImplicitConfigNotice } from "./implicit.js";
 
 export interface CreateFlags {
   level?: string;
@@ -22,7 +23,8 @@ const LEVELS: BumpLevel[] = ["major", "minor", "patch", "prerelease", "auto"];
 
 export async function runCreate(cwd: string, flags: CreateFlags): Promise<number> {
   try {
-    const config = await loadConfig(cwd);
+    const resolved = await resolveConfig(cwd);
+    const { config } = resolved;
     await ensureRepo({ cwd });
     const line = selectLine(config, flags.tag);
     const model = createModel(line.model);
@@ -58,11 +60,13 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
     }
 
     if (flags.dryRun) {
+      printImplicitConfigNotice(resolved);
       warn(`[dry-run] would create ${color.cyan(tagName)}${flags.message ? " (annotated)" : ""}`);
       if (flags.push ?? line.push) warn(`[dry-run] would push ${tagName}`);
       return 0;
     }
 
+    printImplicitConfigNotice(resolved);
     await createTag({ cwd, name: tagName, message: flags.message });
     success(`Created tag ${color.cyan(tagName)}`);
 
@@ -75,7 +79,6 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
     return 0;
   } catch (err) {
     printError(err);
-    if (err instanceof MissingConfigError) printFirstRunHint();
     return 1;
   }
 }

@@ -1,11 +1,12 @@
-import { loadConfig, MissingConfigError } from "../core/config.js";
 import { createModel } from "../core/models/index.js";
 import { planNext } from "../core/plan.js";
 import { assignTagsToLines, selectLine } from "../core/lines.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import type { BumpLevel } from "../types.js";
 import { color, info, printError, warn } from "./ui.js";
-import { printFirstRunHint, printNextStepsAfterNext } from "./guidance.js";
+import { printNextStepsAfterNext } from "./guidance.js";
+import { resolveConfig } from "./resolve-config.js";
+import { implicitConfigJson, printImplicitConfigNotice } from "./implicit.js";
 
 export interface NextFlags {
   level?: string;
@@ -19,7 +20,8 @@ const LEVELS: BumpLevel[] = ["major", "minor", "patch", "prerelease", "auto"];
 export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
   try {
     const level = resolveLevel(flags.level);
-    const config = await loadConfig(cwd);
+    const resolved = await resolveConfig(cwd);
+    const { config } = resolved;
     await ensureRepo({ cwd });
     const line = selectLine(config, flags.tag);
     const model = createModel(line.model);
@@ -42,6 +44,7 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
             fromVersion: plan.fromVersion,
             fresh: plan.fresh,
             line: line.name,
+            ...implicitConfigJson(resolved),
           },
           null,
           2,
@@ -49,6 +52,8 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
       );
       return 0;
     }
+
+    printImplicitConfigNotice(resolved, flags.json);
 
     if (plan.fresh) {
       info(`${color.cyan(plan.tag)} ${color.dim("(initial — no prior tag)")}`);
@@ -61,7 +66,6 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
     return 0;
   } catch (err) {
     printError(err);
-    if (err instanceof MissingConfigError) printFirstRunHint({ json: flags.json });
     return 1;
   }
 }

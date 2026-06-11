@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-11
+
+### 新增
+
+- **多條 tag 線（multi tag-line）**：設定檔可定義多條獨立 tag 線（`tags` 陣列），
+  各線有自己的 `pattern`、版本模型與 `push` 設定，彼此獨立遞增。tag 依 `lines` 宣告
+  順序歸屬第一條符合的線；不符任何線者列為無主（orphan）tag。
+- **舊扁平格式自動升格**：無 `tags` 欄位的舊設定載入時自動包成單一 `default` 線，
+  既有使用者零修改相容。
+- `check` 指令：依規格驗證給定 tag，或不帶參數時 lint 全部 repo tag；多線下對照所有線
+  並回報歸屬線（或 `null`），支援 `--tag <name>` 限定與 `--json`。
+- `guide` 指令：互動式導覽 init → list → next → create。
+- `list --all`：一次檢視所有線（各自分組）與無主 tag；`--json` 對應輸出 `lines` /
+  `orphans` 結構。
+- `next` / `create` / `list` / `check` 新增 `-t, --tag <name>` 選線（省略時取設定檔的
+  `default` 線）。
+- 各指令完成後印出「下一步」引導提示（`--json` 模式不印）。
+- Husky `pre-push` 範本與教學文件（`docs/husky-pre-push.md`），於推送前自動以
+  `tagsmith check` 把關。
+- **Zero-config 模式**：無 `.tagsmith.json` 時，`next` / `create` / `list` / `check`
+  自動以 semver 預設值運作，並從既有 git tag 推斷 pattern（如 `v{version}`、`{version}`）；
+  `init` 改為可選。
+
 ## [0.1.0] - 2026-06-10
 
 ### 新增
@@ -27,5 +50,6 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/CarlLee1983/Tagsmith/releases/tag/v0.1.0

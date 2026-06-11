@@ -123,10 +123,10 @@ describe("tagsmith CLI (built binary)", () => {
     });
   });
 
-  it("commands fail cleanly without a config", () => {
+  it("next works without a config using implicit defaults", () => {
     const r = run(dir, ["next"]);
-    expect(r.code).toBe(1);
-    expect(r.stderr).toMatch(/tagsmith init/);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/v0\.1\.0/);
   });
 
   it("shows a welcome banner and first step in top-level help", () => {

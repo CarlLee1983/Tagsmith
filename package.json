@@ -1,6 +1,6 @@
 {
   "name": "tagsmith",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Define git tag specs, view tags, and generate the next git tag safely — avoiding ordering or format anomalies.",
   "type": "module",
   "bin": {

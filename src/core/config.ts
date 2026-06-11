@@ -2,6 +2,9 @@ import { readFile, writeFile, access } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import type { TagLine, TagsmithConfig, ModelConfig } from "../types.js";
+import { DEFAULT_SEMVER_LINE } from "./defaults.js";
+import { hasConformingTag, inferPattern } from "./infer.js";
+import { createModel } from "./models/index.js";
 
 export const CONFIG_FILENAME = ".tagsmith.json";
 
@@ -55,6 +58,26 @@ const legacyConfigSchema = z.object({
 export class ConfigError extends Error {}
 /** Thrown by loadConfig when no config file exists (vs. a malformed one). */
 export class MissingConfigError extends ConfigError {}
+
+export type ConfigSource = "file" | "inferred" | "default";
+
+export interface ResolvedConfig {
+  config: TagsmithConfig;
+  source: ConfigSource;
+}
+
+/** Build semver defaults, inferring pattern from existing tag names when possible. */
+export function buildImplicitConfig(tags: readonly string[]): ResolvedConfig {
+  const model = createModel(DEFAULT_SEMVER_LINE.model);
+  const pattern = inferPattern(tags, model);
+  const line: TagLine = { ...DEFAULT_SEMVER_LINE, pattern };
+  const config: TagsmithConfig = { lines: [line], default: "default" };
+  const source: ConfigSource =
+    tags.length > 0 && hasConformingTag(tags, pattern, model)
+      ? "inferred"
+      : "default";
+  return { config, source };
+}
 
 /** Parse, normalise and validate a raw config. Throws ConfigError on failure. */
 export function parseConfig(raw: unknown): TagsmithConfig {

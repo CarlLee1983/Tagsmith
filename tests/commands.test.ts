@@ -138,9 +138,9 @@ describe("command runners (in-process)", () => {
 
     it("fails without a config", async () => {
       const r = await capture(() => runList(dir, {}));
-      expect(r.code).toBe(1);
-      expect(r.err).toMatch(/tagsmith init/);
-      expect(r.out).toMatch(/tagsmith init/);
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/No tags/);
+      expect(r.out).toMatch(/\.tagsmith\.json/);
     });
   });
 
@@ -168,9 +168,9 @@ describe("command runners (in-process)", () => {
       expect(r.code).toBe(0);
     });
 
-    it("fails without a config", async () => {
+    it("validates explicit tags without a config file", async () => {
       const r = await capture(() => runCheck(dir, ["v1.0.0"], {}));
-      expect(r.code).toBe(1);
+      expect(r.code).toBe(0);
     });
 
     it("lints all repo tags — passes when all conform (exit 0)", async () => {
@@ -360,11 +360,11 @@ describe("command runners (in-process)", () => {
       expect(r.out).not.toMatch(/Next step/);
     });
 
-    it("shows the first-run hint when no config", async () => {
+    it("uses implicit semver defaults when no config", async () => {
       const r = await capture(() => runNext(dir, {}));
-      expect(r.code).toBe(1);
-      expect(r.err).toMatch(/tagsmith init/);
-      expect(r.out).toMatch(/tagsmith init/);
+      expect(r.code).toBe(0);
+      expect(r.out).toContain("v0.1.0");
+      expect(r.out).toMatch(/\.tagsmith\.json/);
     });
 
     it("next --tag selects the named line and outputs line in JSON", async () => {
@@ -636,6 +636,62 @@ describe("command runners (in-process)", () => {
       const r = await capture(() => runCreate(dir, { tag: "ghost" }));
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/Available:/);
+    });
+  });
+
+  describe("zero-config (implicit semver)", () => {
+    it("next bumps patch from an existing v-prefixed tag", async () => {
+      tag(dir, "v0.1.0");
+      const r = await capture(() => runNext(dir, { json: true }));
+      expect(r.code).toBe(0);
+      const json = JSON.parse(r.out);
+      expect(json.tag).toBe("v0.1.1");
+      expect(json.configSource).toBe("inferred");
+      expect(json.pattern).toBe("v{version}");
+    });
+
+    it("next bumps minor when requested", async () => {
+      tag(dir, "v0.1.0");
+      const r = await capture(() => runNext(dir, { level: "minor", json: true }));
+      expect(JSON.parse(r.out).tag).toBe("v0.2.0");
+    });
+
+    it("infers bare semver pattern from existing tags", async () => {
+      tag(dir, "0.1.0");
+      const r = await capture(() => runNext(dir, { json: true }));
+      expect(JSON.parse(r.out).pattern).toBe("{version}");
+      expect(JSON.parse(r.out).tag).toBe("0.1.1");
+    });
+
+    it("create rejects a duplicate tag without config", async () => {
+      tag(dir, "v1.0.0");
+      const r = await capture(() =>
+        runCreate(dir, { setVersion: "1.0.0", allowOutOfOrder: true }),
+      );
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/already exists/);
+    });
+
+    it("check accepts bare semver when inferred from the argument", async () => {
+      const r = await capture(() => runCheck(dir, ["0.1.0"], { json: true }));
+      expect(r.code).toBe(0);
+      expect(JSON.parse(r.out).pattern).toBe("{version}");
+    });
+
+    it("prefers an on-disk config over inference", async () => {
+      tag(dir, "0.1.0");
+      await runInit(dir, { yes: true, pattern: "v{version}" });
+      const r = await capture(() => runNext(dir, { json: true }));
+      expect(JSON.parse(r.out).tag).toBe("v0.1.0");
+      expect(JSON.parse(r.out).configSource).toBeUndefined();
+    });
+
+    it("lists orphan tags that do not match the inferred pattern", async () => {
+      tag(dir, "v1.0.0");
+      tag(dir, "release/9");
+      const r = await capture(() => runList(dir, {}));
+      expect(r.out).toContain("v1.0.0");
+      expect(r.out).toMatch(/non-conforming|orphan|release\/9/i);
     });
   });
 });
