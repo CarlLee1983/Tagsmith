@@ -8,6 +8,7 @@ import { runCreate } from "./create.js";
 import { runGuide } from "./guide.js";
 import { runCheck } from "./check.js";
 import { runMergeCheck } from "./merge-check.js";
+import { runHooksInstall, runHooksUninstall } from "./hooks.js";
 import { printError } from "./ui.js";
 
 const require = createRequire(import.meta.url);
@@ -147,6 +148,25 @@ program
   )
   .action(async (opts: { mode?: "merge-head" | "post-merge" }) => {
     process.exitCode = await runMergeCheck(process.cwd(), { mode: opts.mode });
+  });
+
+const hooks = program
+  .command("hooks")
+  .description("Manage tagsmith git hooks (merge policy enforcement)");
+
+hooks
+  .command("install")
+  .description("Install merge-policy git hooks into this repo")
+  .option("--force", "overwrite existing non-tagsmith hooks")
+  .action(async (opts: { force?: boolean }) => {
+    process.exitCode = await runHooksInstall(process.cwd(), { force: opts.force });
+  });
+
+hooks
+  .command("uninstall")
+  .description("Remove tagsmith-managed git hooks")
+  .action(async () => {
+    process.exitCode = await runHooksUninstall(process.cwd());
   });
 
 program.parseAsync(process.argv).catch((err) => {

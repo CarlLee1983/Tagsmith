@@ -1,10 +1,11 @@
 // tests/merge-policy.integration.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { runMergeCheck } from "../src/cli/merge-check.js";
+import { runHooksInstall, runHooksUninstall } from "../src/cli/hooks.js";
 
 function git(dir: string, args: string[]): string {
   return execFileSync("git", args, { cwd: dir }).toString();
@@ -148,5 +149,59 @@ describe("runMergeCheck", () => {
       if (prev === undefined) delete process.env.TAGSMITH_SKIP;
       else process.env.TAGSMITH_SKIP = prev;
     }
+  });
+});
+
+describe("runHooksInstall", () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "tagsmith-hooks-"));
+    initRepo(dir);
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("writes husky hooks when a .husky directory exists", async () => {
+    await mkdir(path.join(dir, ".husky"));
+    const code = await silence(() => runHooksInstall(dir, {}));
+    expect(code).toBe(0);
+    const pre = await readFile(
+      path.join(dir, ".husky", "prepare-commit-msg"),
+      "utf8",
+    );
+    expect(pre).toContain("tagsmith merge-check --mode merge-head");
+    const post = await readFile(
+      path.join(dir, ".husky", "post-merge"),
+      "utf8",
+    );
+    expect(post).toContain("tagsmith merge-check --mode post-merge");
+  });
+
+  it("writes .git/hooks (executable) when husky is absent", async () => {
+    const code = await silence(() => runHooksInstall(dir, {}));
+    expect(code).toBe(0);
+    const hookPath = path.join(dir, ".git", "hooks", "post-merge");
+    const post = await readFile(hookPath, "utf8");
+    expect(post).toContain("tagsmith merge-check --mode post-merge");
+    const mode = (await stat(hookPath)).mode;
+    expect(mode & 0o100).toBeTruthy(); // owner-executable
+  });
+
+  it("refuses to overwrite a non-tagsmith hook without --force", async () => {
+    const hookPath = path.join(dir, ".git", "hooks", "post-merge");
+    await writeFile(hookPath, "#!/bin/sh\necho custom\n");
+    const code = await silence(() => runHooksInstall(dir, {}));
+    expect(code).toBe(1);
+    expect(await readFile(hookPath, "utf8")).toContain("echo custom");
+  });
+
+  it("uninstall removes tagsmith-managed hooks", async () => {
+    await silence(() => runHooksInstall(dir, {}));
+    const code = await silence(() => runHooksUninstall(dir));
+    expect(code).toBe(0);
+    await expect(
+      stat(path.join(dir, ".git", "hooks", "post-merge")),
+    ).rejects.toThrow();
   });
 });
