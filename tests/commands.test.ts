@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -158,12 +158,14 @@ describe("command runners (in-process)", () => {
       expect(r.err).toMatch(/junk/);
     });
 
-    it("detects a duplicate against an existing tag", async () => {
+    it("reports a tag that matches its line as ok (no duplicate detection in check)", async () => {
+      // Under the new cross-line semantics, `check` classifies tags against their
+      // owning line but does NOT perform duplicate-against-existing-repo detection.
+      // Duplicate safety is enforced by `create`, not `check`.
       await runInit(dir, { yes: true });
       tag(dir, "v1.0.0");
       const r = await capture(() => runCheck(dir, ["v1.0.0"], {}));
-      expect(r.code).toBe(1);
-      expect(r.err).toMatch(/duplicate/);
+      expect(r.code).toBe(0);
     });
 
     it("fails without a config", async () => {
@@ -177,7 +179,9 @@ describe("command runners (in-process)", () => {
       tag(dir, "v1.1.0");
       const r = await capture(() => runCheck(dir, [], {}));
       expect(r.code).toBe(0);
-      expect(r.out).toMatch(/conform/);
+      // Human output now lists each tag with "ok" and its owning line.
+      expect(r.out).toMatch(/v1\.0\.0/);
+      expect(r.out).toMatch(/ok/);
     });
 
     it("lints all repo tags — fails on anomaly (exit 1)", async () => {
@@ -189,29 +193,34 @@ describe("command runners (in-process)", () => {
       expect(r.err).toMatch(/junk/);
     });
 
-    it("lint mode emits JSON", async () => {
+    it("lint mode emits JSON with results shape", async () => {
+      // JSON shape changed from { ok, anomalies } to { results: [{ raw, line, ok, anomaly }] }
+      // under the new cross-line check semantics.
       await runInit(dir, { yes: true });
       tag(dir, "junk");
       const r = await capture(() => runCheck(dir, [], { json: true }));
       const parsed = JSON.parse(r.out);
-      expect(parsed.ok).toBe(false);
-      expect(parsed.anomalies[0].tag).toBe("junk");
+      expect(parsed).toHaveProperty("results");
+      const junkResult = parsed.results.find((res: { raw: string }) => res.raw === "junk");
+      expect(junkResult.ok).toBe(false);
+      expect(junkResult.line).toBeNull();
     });
 
-    it("explicit mode emits JSON", async () => {
+    it("explicit mode emits JSON with results shape", async () => {
+      // JSON shape changed from { ok, checks } to { results: [{ raw, line, ok, anomaly }] }
+      // under the new cross-line check semantics.
       await runInit(dir, { yes: true });
       const r = await capture(() => runCheck(dir, ["v1.2.3"], { json: true }));
       const parsed = JSON.parse(r.out);
-      expect(parsed.ok).toBe(true);
-      expect(parsed.checks[0]).toEqual({ tag: "v1.2.3", ok: true, anomaly: null });
+      expect(parsed).toHaveProperty("results");
+      expect(parsed.results[0]).toMatchObject({ raw: "v1.2.3", ok: true, anomaly: null, line: "default" });
     });
 
     it("explicit mode emits JSON for non-conforming tag", async () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runCheck(dir, ["junk"], { json: true }));
       const parsed = JSON.parse(r.out);
-      expect(parsed.ok).toBe(false);
-      expect(parsed.checks[0]).toEqual({ tag: "junk", ok: false, anomaly: "pattern-mismatch" });
+      expect(parsed.results[0]).toMatchObject({ raw: "junk", ok: false, anomaly: "pattern-mismatch", line: null });
     });
 
     it("explicit --json output is pure JSON (no decorated lines)", async () => {
@@ -219,6 +228,94 @@ describe("command runners (in-process)", () => {
       const r = await capture(() => runCheck(dir, ["v1.2.3"], { json: true }));
       expect(() => JSON.parse(r.out)).not.toThrow();
       expect(r.out).not.toMatch(/ ok$/m);
+    });
+
+    it("cross-line check reports which line each tag belongs to", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      const r = await capture(() =>
+        runCheck(dir, ["v1.2.3", "release/9", "junk"], { json: true }),
+      );
+      const json = JSON.parse(r.out);
+      expect(json).toHaveProperty("results");
+      const byRaw = Object.fromEntries(
+        json.results.map((res: { raw: string; line: string | null }) => [res.raw, res.line]),
+      );
+      expect(byRaw["v1.2.3"]).toBe("app");
+      expect(byRaw["release/9"]).toBe("release");
+      expect(byRaw["junk"]).toBeNull();
+    });
+
+    it("cross-line check exits 1 when any result is not ok", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      // "junk" has no matching line → ok:false
+      const r = await capture(() =>
+        runCheck(dir, ["v1.2.3", "junk"], { json: true }),
+      );
+      const json = JSON.parse(r.out);
+      expect(r.code).toBe(1);
+      const junkResult = json.results.find((res: { raw: string }) => res.raw === "junk");
+      expect(junkResult.ok).toBe(false);
+    });
+
+    it("--tag restricts validation to the named line", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      // release/9 does not match the "app" pattern → ok:false
+      const r = await capture(() =>
+        runCheck(dir, ["release/9"], { tag: "app", json: true }),
+      );
+      const json = JSON.parse(r.out);
+      expect(json.results[0].ok).toBe(false);
+      expect(r.code).toBe(1);
+    });
+
+    it("--tag with a conforming tag on the correct line exits 0", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      const r = await capture(() =>
+        runCheck(dir, ["v1.2.3"], { tag: "app", json: true }),
+      );
+      const json = JSON.parse(r.out);
+      expect(json.results[0].ok).toBe(true);
+      expect(json.results[0].line).toBe("app");
+      expect(r.code).toBe(0);
     });
   });
 
@@ -268,6 +365,195 @@ describe("command runners (in-process)", () => {
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/tagsmith init/);
       expect(r.out).toMatch(/tagsmith init/);
+    });
+
+    it("next --tag selects the named line and outputs line in JSON", async () => {
+      // Multi-line config: app (semver v{version}), release (build release/{version})
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/7");
+
+      const r = await capture(() => runNext(dir, { tag: "release", json: true }));
+      expect(r.code).toBe(0);
+      const json = JSON.parse(r.out);
+      expect(json.line).toBe("release");
+      expect(json.tag).toBe("release/8");
+    });
+
+    it("next with unknown --tag exits 1 with Available: in stderr", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runNext(dir, { tag: "ghost" }));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/Available:/);
+    });
+  });
+
+  describe("list --tag (single-line selection)", () => {
+    it("shows only the selected line's tags in a multi-line config", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+      tag(dir, "orphan-tag");
+
+      const r = await capture(() => runList(dir, { tag: "release" }));
+      expect(r.code).toBe(0);
+      // Should show release line tags
+      expect(r.out).toContain("release/3");
+      // Should NOT show app tags or orphan tags
+      expect(r.out).not.toContain("v1.0.0");
+      expect(r.out).not.toContain("orphan-tag");
+    });
+
+    it("--tag with --json includes line field in single-line output", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+
+      const r = await capture(() => runList(dir, { tag: "release", json: true }));
+      expect(r.code).toBe(0);
+      const parsed = JSON.parse(r.out);
+      expect(parsed.line).toBe("release");
+      expect(parsed).toHaveProperty("conforming");
+      expect(parsed).toHaveProperty("latest");
+      expect(parsed.latest).toBe("release/3");
+    });
+
+    it("--all and --tag are mutually exclusive (exits 1)", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runList(dir, { all: true, tag: "app" }));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/mutually exclusive/);
+    });
+  });
+
+  describe("list --all", () => {
+    it("groups tags per line and surfaces orphans in human-readable output", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+      tag(dir, "legacy-tag");
+
+      const r = await capture(() => runList(dir, { all: true }));
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/app/);
+      expect(r.out).toMatch(/release/);
+      expect(r.out).toMatch(/v1\.0\.0/);
+      expect(r.out).toMatch(/release\/3/);
+      // orphan section
+      expect(r.out).toMatch(/legacy-tag/);
+    });
+
+    it("--json --all outputs { lines, orphans } shape", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+      tag(dir, "legacy-tag");
+
+      const r = await capture(() => runList(dir, { all: true, json: true }));
+      expect(r.code).toBe(0);
+      const parsed = JSON.parse(r.out);
+      // top-level keys
+      expect(parsed).toHaveProperty("lines");
+      expect(parsed).toHaveProperty("orphans");
+      // lines array: one entry per tag line
+      expect(parsed.lines).toHaveLength(2);
+      const appEntry = parsed.lines.find((l: { line: string }) => l.line === "app");
+      const releaseEntry = parsed.lines.find((l: { line: string }) => l.line === "release");
+      expect(appEntry).toBeDefined();
+      expect(releaseEntry).toBeDefined();
+      expect(appEntry.conforming.map((t: { tag: string }) => t.tag)).toContain("v1.0.0");
+      expect(releaseEntry.conforming.map((t: { tag: string }) => t.tag)).toContain("release/3");
+      // orphans array
+      expect(parsed.orphans).toContain("legacy-tag");
+    });
+
+    it("list --all with no orphans omits orphans section in human output", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runList(dir, { all: true }));
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/v1\.0\.0/);
+      expect(r.out).not.toMatch(/[Oo]rphan/);
     });
   });
 
@@ -333,6 +619,23 @@ describe("command runners (in-process)", () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runCreate(dir, {}));
       expect(r.out).toMatch(/git push origin v0\.1\.0/);
+    });
+
+    it("create with unknown --tag exits 1 with Available: in stderr", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runCreate(dir, { tag: "ghost" }));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/Available:/);
     });
   });
 });

@@ -32,6 +32,7 @@ Examples:
   $ tagsmith list                          Inspect existing tags
   $ tagsmith check v1.2.3                  Validate a tag against the spec
   $ tagsmith next --level minor            Preview the next tag
+  $ tagsmith next --tag release            Compute next on a named tag line
   $ tagsmith create --level minor --push   Create and push the next tag
 `,
 );
@@ -61,6 +62,8 @@ program
   .alias("ls")
   .description("List git tags, sorted and validated against the spec")
   .option("--json", "output JSON")
+  .option("-t, --tag <name>", "list only the named tag line")
+  .option("--all", "list every tag line plus unassigned tags")
   .action(async (opts) => {
     process.exitCode = await runList(process.cwd(), opts);
   });
@@ -74,6 +77,10 @@ program
     "patch",
   )
   .option("--json", "output JSON")
+  .option(
+    "-t, --tag <name>",
+    "operate on the named tag line (default: the config's default line)",
+  )
   .action(async (opts) => {
     process.exitCode = await runNext(process.cwd(), opts);
   });
@@ -84,6 +91,7 @@ program
     "Validate tags against the spec; with no args, lint all repo tags",
   )
   .option("--json", "output JSON")
+  .option("-t, --tag <name>", "validate only against the named tag line")
   .action(async (tags: string[], opts) => {
     process.exitCode = await runCheck(process.cwd(), tags, opts);
   });
@@ -104,6 +112,10 @@ const createCommand = program
   .option("--push", "push the tag after creating")
   .option("--dry-run", "preview without creating")
   .option("--allow-out-of-order", "permit a version not greater than latest")
+  .option(
+    "-t, --tag <name>",
+    "operate on the named tag line (default: the config's default line)",
+  )
   .action(async (opts) => {
     process.exitCode = await runCreate(process.cwd(), opts);
   });
@@ -116,6 +128,7 @@ Examples:
   $ tagsmith create -l minor -m "..."      Create an annotated minor tag
   $ tagsmith create --set-version 2.0.0    Create an explicit version
   $ tagsmith create --dry-run              Preview without creating
+  $ tagsmith create --tag release          Create the next tag on a named tag line
 `,
 );
 

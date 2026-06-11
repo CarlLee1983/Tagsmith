@@ -1,4 +1,4 @@
-import type { BumpLevel, TagsmithConfig, VersionModel } from "../types.js";
+import type { BumpLevel, TagLine, VersionModel } from "../types.js";
 import { compilePattern } from "./pattern.js";
 import { analyzeTags, type Analysis } from "./analyze.js";
 
@@ -21,16 +21,16 @@ export class PlanError extends Error {}
  * is strictly greater than the current highest conforming version.
  */
 export function planNext(
-  config: TagsmithConfig,
+  line: TagLine,
   model: VersionModel,
   existingTags: readonly string[],
   level: BumpLevel = "patch",
 ): NextPlan {
-  const pattern = compilePattern(config.pattern);
+  const pattern = compilePattern(line.pattern);
   const analysis = analyzeTags(existingTags, pattern, model);
 
   if (analysis.latest === null) {
-    const initial = model.initial(config.initialVersion);
+    const initial = model.initial(line.initialVersion);
     return {
       tag: pattern.render(model.format(initial)),
       version: model.format(initial),
@@ -72,13 +72,13 @@ export interface ValidationResult {
  * greater than the current highest conforming version.
  */
 export function validateExplicit(
-  config: TagsmithConfig,
+  line: TagLine,
   model: VersionModel,
   explicitVersion: string,
   existingTags: readonly string[],
   opts: ValidateOptions = {},
 ): ValidationResult {
-  const pattern = compilePattern(config.pattern);
+  const pattern = compilePattern(line.pattern);
   const errors: string[] = [];
 
   const parsed = model.parse(explicitVersion);

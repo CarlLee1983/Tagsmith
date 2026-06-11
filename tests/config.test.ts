@@ -9,25 +9,27 @@ import {
   MissingConfigError,
 } from "../src/core/config.js";
 
-describe("parseConfig", () => {
-  it("accepts a valid semver config", () => {
+describe("parseConfig (legacy flat)", () => {
+  it("normalises a legacy flat config into a single default line", () => {
     const cfg = parseConfig({
       pattern: "v{version}",
       model: { type: "semver", allowPrerelease: true },
       initialVersion: "0.1.0",
       push: false,
     });
-    expect(cfg.pattern).toBe("v{version}");
-    expect(cfg.model.type).toBe("semver");
+    expect(cfg.lines).toHaveLength(1);
+    expect(cfg.lines[0].name).toBe("default");
+    expect(cfg.lines[0].pattern).toBe("v{version}");
+    expect(cfg.default).toBe("default");
   });
 
-  it("defaults push to false", () => {
+  it("defaults legacy push to false", () => {
     const cfg = parseConfig({
       pattern: "v{version}",
       model: { type: "semver" },
       initialVersion: "0.1.0",
     });
-    expect(cfg.push).toBe(false);
+    expect(cfg.lines[0].push).toBe(false);
   });
 
   it("rejects a pattern without placeholder", () => {
@@ -56,6 +58,62 @@ describe("parseConfig", () => {
         pattern: "{version}",
         model: { type: "calver" },
         initialVersion: "2026.06.0",
+      }),
+    ).toThrow(ConfigError);
+  });
+});
+
+describe("parseConfig (multi-line)", () => {
+  const base = {
+    tags: [
+      { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+      { name: "release", pattern: "release/{version}",
+        model: { type: "calver", format: "YYYY.MM.MICRO" },
+        initialVersion: "2026.06.0", push: true },
+    ],
+    default: "app",
+  };
+
+  it("parses a multi-line config", () => {
+    const cfg = parseConfig(base);
+    expect(cfg.lines.map((l) => l.name)).toEqual(["app", "release"]);
+    expect(cfg.default).toBe("app");
+    expect(cfg.lines[1].push).toBe(true);
+  });
+
+  it("defaults push to false per line", () => {
+    const cfg = parseConfig(base);
+    expect(cfg.lines[0].push).toBe(false);
+  });
+
+  it("defaults `default` to the first line when omitted", () => {
+    const cfg = parseConfig({ tags: base.tags });
+    expect(cfg.default).toBe("app");
+  });
+
+  it("rejects duplicate line names", () => {
+    expect(() =>
+      parseConfig({
+        tags: [
+          { name: "dup", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          { name: "dup", pattern: "r/{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+        ],
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it("rejects an empty tags array", () => {
+    expect(() => parseConfig({ tags: [] })).toThrow(ConfigError);
+  });
+
+  it("rejects a default that names no line", () => {
+    expect(() => parseConfig({ tags: base.tags, default: "ghost" })).toThrow(ConfigError);
+  });
+
+  it("rejects a line pattern without placeholder", () => {
+    expect(() =>
+      parseConfig({
+        tags: [{ name: "x", pattern: "v", model: { type: "semver" }, initialVersion: "0.1.0" }],
       }),
     ).toThrow(ConfigError);
   });

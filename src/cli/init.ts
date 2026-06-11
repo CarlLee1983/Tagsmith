@@ -2,7 +2,6 @@ import * as p from "@clack/prompts";
 import {
   CONFIG_FILENAME,
   configExists,
-  parseConfig,
   writeConfig,
 } from "../core/config.js";
 import type { ModelConfig, TagsmithConfig } from "../types.js";
@@ -35,9 +34,7 @@ export async function runInit(cwd: string, flags: InitFlags): Promise<number> {
     return 1;
   }
 
-  // Validate before writing so we never persist a broken config.
-  const validated = parseConfig(config);
-  await writeConfig(cwd, validated);
+  await writeConfig(cwd, config);
   success(`Wrote ${CONFIG_FILENAME}`);
   if (flags.hints !== false) printNextStepsAfterInit({});
   return 0;
@@ -46,10 +43,16 @@ export async function runInit(cwd: string, flags: InitFlags): Promise<number> {
 function buildFromFlags(flags: InitFlags): TagsmithConfig {
   const modelType = (flags.model ?? "semver") as ModelConfig["type"];
   return {
-    pattern: flags.pattern ?? "v{version}",
-    model: defaultModel(modelType),
-    initialVersion: flags.initialVersion ?? defaultInitial(modelType),
-    push: flags.push ?? false,
+    lines: [
+      {
+        name: "default",
+        pattern: flags.pattern ?? "v{version}",
+        model: defaultModel(modelType),
+        initialVersion: flags.initialVersion ?? defaultInitial(modelType),
+        push: flags.push ?? false,
+      },
+    ],
+    default: "default",
   };
 }
 
@@ -91,7 +94,10 @@ async function promptForConfig(flags: InitFlags): Promise<TagsmithConfig | null>
   if (p.isCancel(push)) return null;
 
   p.outro("Configured.");
-  return { pattern, model, initialVersion, push };
+  return {
+    lines: [{ name: "default", pattern, model, initialVersion, push }],
+    default: "default",
+  };
 }
 
 async function promptModelDetails(

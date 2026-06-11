@@ -1,16 +1,44 @@
 import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
-import type { CompiledPattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
-import type { VersionModel } from "../types.js";
-import { checkTags } from "../core/check.js";
-import { analyzeTags } from "../core/analyze.js";
-import { ensureRepo, listTags, GitError } from "../git/git.js";
+import { classify } from "../core/analyze.js";
+import { selectLine } from "../core/lines.js";
+import { ensureRepo, listTags } from "../git/git.js";
 import { color, info, printError, success } from "./ui.js";
 import { printFirstRunHint } from "./guidance.js";
 
 export interface CheckFlags {
   json?: boolean;
+  tag?: string;
+}
+
+interface CheckResult {
+  raw: string;
+  line: string | null;
+  ok: boolean;
+  anomaly: string | null;
+}
+
+/**
+ * Emit check results to stdout (JSON) or stdout/stderr (human-readable).
+ * Returns 0 if all results are ok, 1 if any is not ok.
+ */
+function emitCheck(results: CheckResult[], json: boolean | undefined): number {
+  const allOk = results.every((r) => r.ok);
+
+  if (json) {
+    info(JSON.stringify({ results }, null, 2));
+    return allOk ? 0 : 1;
+  }
+
+  for (const r of results) {
+    if (r.ok) {
+      success(`${color.cyan(r.raw)} ${color.dim("ok")} ${color.dim(`(${r.line ?? "orphan"})`)}`);
+    } else {
+      printError(`${r.raw} (${r.anomaly})`);
+    }
+  }
+  return allOk ? 0 : 1;
 }
 
 export async function runCheck(
@@ -20,89 +48,58 @@ export async function runCheck(
 ): Promise<number> {
   try {
     const config = await loadConfig(cwd);
-    const pattern = compilePattern(config.pattern);
-    const model = createModel(config.model);
 
+    // Determine the list of tags to validate.
+    let targets: string[];
     if (tags.length > 0) {
-      return await runExplicit(cwd, pattern, model, tags, flags);
+      targets = tags;
+    } else {
+      await ensureRepo({ cwd });
+      targets = await listTags({ cwd });
     }
-    return await runLint(cwd, pattern, model, flags);
+
+    // --tag mode: validate all targets against only the named line.
+    if (flags.tag) {
+      const line = selectLine(config, flags.tag);
+      const pattern = compilePattern(line.pattern);
+      const model = createModel(line.model);
+      const results: CheckResult[] = targets.map((raw) => {
+        const c = classify(raw, pattern, model);
+        return {
+          raw,
+          line: c.conforming ? line.name : null,
+          ok: c.conforming,
+          anomaly: c.anomaly,
+        };
+      });
+      return emitCheck(results, flags.json);
+    }
+
+    // Default cross-line mode: assign each target to its owning line (first match wins).
+    // Compile each line's pattern + model once before iterating over targets.
+    const compiled = config.lines.map((l) => ({
+      line: l,
+      pattern: compilePattern(l.pattern),
+      model: createModel(l.model),
+    }));
+    const results: CheckResult[] = targets.map((raw) => {
+      const hit = compiled.find((c) => c.pattern.extract(raw) !== null);
+      if (!hit) {
+        return { raw, line: null, ok: false, anomaly: "pattern-mismatch" };
+      }
+      const c = classify(raw, hit.pattern, hit.model);
+      return {
+        raw,
+        line: hit.line.name,
+        ok: c.conforming,
+        anomaly: c.anomaly,
+      };
+    });
+
+    return emitCheck(results, flags.json);
   } catch (err) {
     printError(err);
     if (err instanceof MissingConfigError) printFirstRunHint({ json: flags.json });
     return 1;
   }
-}
-
-async function runExplicit(
-  cwd: string,
-  pattern: CompiledPattern,
-  model: VersionModel,
-  tags: string[],
-  flags: CheckFlags,
-): Promise<number> {
-  // 重複偵測為盡力而為：在 repo 內才讀既有 tags。
-  let existing: string[] = [];
-  try {
-    await ensureRepo({ cwd });
-    existing = await listTags({ cwd });
-  } catch (err) {
-    if (!(err instanceof GitError)) throw err;
-  }
-
-  const result = checkTags(pattern, model, tags, existing);
-
-  if (flags.json) {
-    info(JSON.stringify(result, null, 2));
-    return result.ok ? 0 : 1;
-  }
-
-  for (const c of result.checks) {
-    if (c.ok) {
-      success(`${color.cyan(c.tag)} ${color.dim("ok")}`);
-    } else {
-      printError(`${c.tag} (${c.anomaly})`);
-    }
-  }
-  return result.ok ? 0 : 1;
-}
-
-async function runLint(
-  cwd: string,
-  pattern: CompiledPattern,
-  model: VersionModel,
-  flags: CheckFlags,
-): Promise<number> {
-  await ensureRepo({ cwd });
-  const tags = await listTags({ cwd });
-  const analysis = analyzeTags(tags, pattern, model);
-  const ok = analysis.anomalies.length === 0;
-
-  if (flags.json) {
-    info(
-      JSON.stringify(
-        {
-          ok,
-          anomalies: analysis.anomalies.map((t) => ({
-            tag: t.raw,
-            anomaly: t.anomaly,
-          })),
-        },
-        null,
-        2,
-      ),
-    );
-    return ok ? 0 : 1;
-  }
-
-  if (ok) {
-    success(`All ${analysis.conforming.length} tag(s) conform to the spec.`);
-    return 0;
-  }
-  // check is a gate: failures go to stderr so the exit code is the signal
-  // (intentionally unlike `list`, which prints anomalies to stdout).
-  for (const t of analysis.anomalies) {
-    printError(`${t.raw} (${t.anomaly})`);
-  }
-  return 1;
 }

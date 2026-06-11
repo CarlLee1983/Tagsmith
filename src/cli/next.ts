@@ -1,6 +1,7 @@
 import { loadConfig, MissingConfigError } from "../core/config.js";
 import { createModel } from "../core/models/index.js";
 import { planNext } from "../core/plan.js";
+import { assignTagsToLines, selectLine } from "../core/lines.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import type { BumpLevel } from "../types.js";
 import { color, info, printError, warn } from "./ui.js";
@@ -10,6 +11,7 @@ export interface NextFlags {
   level?: string;
   json?: boolean;
   hints?: boolean;
+  tag?: string;
 }
 
 const LEVELS: BumpLevel[] = ["major", "minor", "patch", "prerelease", "auto"];
@@ -19,9 +21,11 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
     const level = resolveLevel(flags.level);
     const config = await loadConfig(cwd);
     await ensureRepo({ cwd });
-    const model = createModel(config.model);
-    const tags = await listTags({ cwd });
-    const plan = planNext(config, model, tags, level);
+    const line = selectLine(config, flags.tag);
+    const model = createModel(line.model);
+    const allTags = await listTags({ cwd });
+    const lineTags = assignTagsToLines(allTags, config.lines).byLine.get(line.name) ?? [];
+    const plan = planNext(line, model, lineTags, level);
 
     if (plan.fresh && plan.analysis.anomalies.length > 0 && !flags.json) {
       warn(
@@ -37,6 +41,7 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
             version: plan.version,
             fromVersion: plan.fromVersion,
             fresh: plan.fresh,
+            line: line.name,
           },
           null,
           2,
