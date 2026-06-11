@@ -14,14 +14,8 @@ export interface ListFlags {
   all?: boolean;
 }
 
-/** Print the analysis for a single named line (human-readable). */
-function printLineSection(lineName: string, analysis: Analysis): void {
-  info(color.bold(`\n── Line: ${lineName} ──`));
-  if (analysis.conforming.length === 0 && analysis.anomalies.length === 0) {
-    info("  (no tags)");
-    return;
-  }
-
+/** Render the conforming + anomaly listing for an analysis (human-readable). */
+function printAnalysisBody(analysis: Analysis): void {
   info(color.bold("Conforming tags (newest first):"));
   if (analysis.conforming.length === 0) {
     info("  (none)");
@@ -38,6 +32,31 @@ function printLineSection(lineName: string, analysis: Analysis): void {
       info(`  ${color.yellow(t.raw)} ${color.dim(`(${t.anomaly})`)}`);
     }
   }
+}
+
+/** Serialise an analysis to the shared `--json` shape. */
+function analysisToJson(analysis: Analysis) {
+  return {
+    conforming: analysis.conforming.map((t) => ({
+      tag: t.raw,
+      version: t.versionString,
+    })),
+    anomalies: analysis.anomalies.map((t) => ({
+      tag: t.raw,
+      reason: t.anomaly,
+    })),
+    latest: analysis.latest?.raw ?? null,
+  };
+}
+
+/** Print the analysis for a single named line (human-readable, with header). */
+function printLineSection(lineName: string, analysis: Analysis): void {
+  info(color.bold(`\n── Line: ${lineName} ──`));
+  if (analysis.conforming.length === 0 && analysis.anomalies.length === 0) {
+    info("  (no tags)");
+    return;
+  }
+  printAnalysisBody(analysis);
 }
 
 /** Print the orphan tags section (human-readable). */
@@ -62,18 +81,7 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
           const pattern = compilePattern(line.pattern);
           const lineTags = assignment.byLine.get(line.name) ?? [];
           const analysis = analyzeTags(lineTags, pattern, model);
-          return {
-            line: line.name,
-            conforming: analysis.conforming.map((t) => ({
-              tag: t.raw,
-              version: t.versionString,
-            })),
-            anomalies: analysis.anomalies.map((t) => ({
-              tag: t.raw,
-              reason: t.anomaly,
-            })),
-            latest: analysis.latest?.raw ?? null,
-          };
+          return { line: line.name, ...analysisToJson(analysis) };
         });
         info(
           JSON.stringify(
@@ -116,23 +124,7 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
     const analysis = analyzeTags(tagsForAnalysis, pattern, model);
 
     if (flags.json) {
-      info(
-        JSON.stringify(
-          {
-            conforming: analysis.conforming.map((t) => ({
-              tag: t.raw,
-              version: t.versionString,
-            })),
-            anomalies: analysis.anomalies.map((t) => ({
-              tag: t.raw,
-              reason: t.anomaly,
-            })),
-            latest: analysis.latest?.raw ?? null,
-          },
-          null,
-          2,
-        ),
-      );
+      info(JSON.stringify(analysisToJson(analysis), null, 2));
       return 0;
     }
 
@@ -141,22 +133,7 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
       return 0;
     }
 
-    info(color.bold("Conforming tags (newest first):"));
-    if (analysis.conforming.length === 0) {
-      info("  (none)");
-    }
-    analysis.conforming.forEach((t, i) => {
-      const marker = i === 0 ? color.green(" ← latest") : "";
-      info(`  ${color.cyan(t.raw)}${marker}`);
-    });
-
-    if (analysis.anomalies.length > 0) {
-      info("");
-      warn(`${analysis.anomalies.length} non-conforming tag(s):`);
-      for (const t of analysis.anomalies) {
-        info(`  ${color.yellow(t.raw)} ${color.dim(`(${t.anomaly})`)}`);
-      }
-    }
+    printAnalysisBody(analysis);
     return 0;
   } catch (err) {
     printError(err);
