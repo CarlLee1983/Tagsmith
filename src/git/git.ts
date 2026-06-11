@@ -115,7 +115,10 @@ export async function mergeMsg(opts: GitOptions): Promise<string | null> {
     opts.cwd,
   );
   if (code !== 0) return null;
-  const file = path.join(opts.cwd, stdout.trim());
+  // `--git-path` returns an absolute path under separate-git-dir / $GIT_DIR
+  // setups; resolve relative paths against cwd but keep absolute ones as-is.
+  const raw = stdout.trim();
+  const file = path.isAbsolute(raw) ? raw : path.join(opts.cwd, raw);
   try {
     return await readFile(file, "utf8");
   } catch {
