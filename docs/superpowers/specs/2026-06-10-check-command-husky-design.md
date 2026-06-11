@@ -49,7 +49,7 @@ README.md               新增章節
    - 不在 repo 內時，略過與既有 tag 的比對，仍偵測本批候選之間的重複，並仍做
      格式檢查。
 
-需要 `.tagsmith.json`（pattern / model 來源）。**不**硬性要求 git repo。
+需要 `.tagsmith.json`（pattern / model 來源）或 zero-config 隱含 semver 預設。**不**硬性要求 git repo（模式一可只驗證給定 tag）。
 
 ### 模式二：未給 tag（`tagsmith check`）
 
@@ -64,8 +64,8 @@ README.md               新增章節
 ## 輸出與 exit code（遵循 ui.ts 慣例）
 
 - 全部通過 → stdout 友善訊息，`exit 0`。
-- 任一不通過 / 缺 config / 模式二不在 repo → stderr 印原因，`exit 1`。
-- 缺 config 時額外印 first-run 提示（沿用 `printFirstRunHint`）。
+- 任一不通過 / 模式二不在 repo → stderr 印原因，`exit 1`。
+- 無設定檔時（0.2.0+）使用 zero-config 隱含 semver，不再強制 `init`。
 - `--json` → 只印 JSON，不印裝飾訊息：
   - 模式一：`{ "ok": boolean, "checks": [{ "tag": string, "ok": boolean, "anomaly": string | null }] }`
   - 模式二：`{ "ok": boolean, "anomalies": [{ "tag": string, "reason": string }] }`
@@ -144,7 +144,8 @@ done
 npx tagsmith check $tags
 ```
 
-教學涵蓋：`npm i -D husky` → `npx husky init` → 將上述內容寫入 `.husky/pre-push`。
+教學涵蓋：`npm i -D @carllee1983/tagsmith husky` → `npx husky init` → 將上述內容寫入 `.husky/pre-push`。
+（專案 devDependency 裝好後，`npx tagsmith` 會走本機 bin；否則改用 `npx @carllee1983/tagsmith`。）
 說明此 hook 僅在推送內容含 tag 時觸發（`refs/tags/*`），純 branch 推送與刪除
 tag（local_ref 非 `refs/tags/*`）直接放行。
 

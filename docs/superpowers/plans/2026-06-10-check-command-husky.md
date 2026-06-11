@@ -593,12 +593,13 @@ git commit -m "feat: [cli] 註冊 check 子指令"
 
 ## 前置
 
-專案已用 `tagsmith init` 建立 `.tagsmith.json`，且已安裝 tagsmith（本機或專案相依）。
+專案已用 `tagsmith init` 建立 `.tagsmith.json`（或使用 zero-config），且已安裝
+[`@carllee1983/tagsmith`](https://www.npmjs.com/package/@carllee1983/tagsmith)（本機或專案相依）。
 
 ## 安裝步驟（husky v9+）
 
 ```bash
-npm i -D husky
+npm i -D @carllee1983/tagsmith husky
 npx husky init
 ```
 

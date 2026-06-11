@@ -5,12 +5,13 @@
 
 ## 前置
 
-專案已用 `tagsmith init` 建立 `.tagsmith.json`，且已安裝 tagsmith（本機或專案相依）。
+- 專案已用 `tagsmith init` 建立 `.tagsmith.json`（或使用 zero-config semver 模式）
+- 已安裝 [`@carllee1983/tagsmith`](https://www.npmjs.com/package/@carllee1983/tagsmith)（本機全域或專案 devDependency）
 
 ## 安裝步驟（husky v9+）
 
 ```bash
-npm i -D husky
+npm i -D @carllee1983/tagsmith husky
 npx husky init
 ```
 
@@ -28,6 +29,8 @@ done
 # shellcheck disable=SC2086
 npx tagsmith check $tags
 ```
+
+> 若專案未安裝 devDependency，可改為 `npx @carllee1983/tagsmith check $tags`。
 
 ## 行為說明
 

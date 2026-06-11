@@ -5,10 +5,22 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-11
+
+### 修正
+
+- CLI `--version` 改從 `package.json` 讀取，不再寫死舊版號。
+
+### 文件
+
+- README / CONTRIBUTING / CLAUDE / husky 範本：更新為 npm 套件 `@carllee1983/tagsmith`、zero-config 用法與 `$schema` 路徑。
+- `schema.json` 的 `$id` 改指向 `CarlLee1983/Tagsmith` repo。
+
 ## [0.2.0] - 2026-06-11
 
 ### 新增
 
+- **npm 發佈**：以 [`@carllee1983/tagsmith`](https://www.npmjs.com/package/@carllee1983/tagsmith) 發佈至 npm（scoped 公開套件；CLI 指令名稱仍為 `tagsmith`）。
 - **多條 tag 線（multi tag-line）**：設定檔可定義多條獨立 tag 線（`tags` 陣列），
   各線有自己的 `pattern`、版本模型與 `push` 設定，彼此獨立遞增。tag 依 `lines` 宣告
   順序歸屬第一條符合的線；不符任何線者列為無主（orphan）tag。
@@ -50,6 +62,7 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/CarlLee1983/Tagsmith/releases/tag/v0.1.0

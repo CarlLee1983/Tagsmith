@@ -6,6 +6,9 @@
 
 需求：Node.js ≥ 18、git。
 
+本 repo 為套件原始碼；發佈至 npm 的套件名為 **`@carllee1983/tagsmith`**
+（[npm 頁面](https://www.npmjs.com/package/@carllee1983/tagsmith)）。使用者安裝後 CLI 指令仍為 `tagsmith`。
+
 ```bash
 git clone <repo>
 cd Tagsmith

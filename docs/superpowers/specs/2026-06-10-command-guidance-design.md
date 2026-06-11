@@ -28,7 +28,8 @@
 
 匯出函式(皆接受 `{ json?: boolean }`,JSON 為真時 no-op):
 
-- `printFirstRunHint()` — 無設定檔時的友善兩行提示(說明 + `tagsmith init`)。
+- `printImplicitConfigNotice()` — 無設定檔時提示使用隱含 semver 預設（0.2.0+）。
+- `printFirstRunHint()` — `loadConfig()` 缺檔時的錯誤提示（僅程式庫直接呼叫時）。
 - `printNextStepsAfterInit(opts)` — 建議 `tagsmith list`、`tagsmith next`。
 - `printNextStepsAfterNext(opts)` — 建議 `tagsmith create -l <level>`(沿用使用者剛用的 level)。
 - `printNextStepsAfterCreate(opts)` — 未 `--push` 則建議補 `--push`;已 push 則建議 `tagsmith list`。
@@ -46,7 +47,7 @@
 
 ### `src/cli/index.ts`(修改)
 
-- `program.addHelpText('beforeAll', …)`:歡迎橫幅 + 「第一步:`tagsmith init`」。
+- `program.addHelpText('beforeAll', …)`:歡迎橫幅 + 「第一次使用可 `tagsmith init` 或 `tagsmith guide`」。
 - 全域與各指令 `addHelpText('after', …)`:取自 README 快速開始的真實範例區塊。
 - 註冊 `guide` 指令。
 - 各 `.action` 在對應 `runX` 之後呼叫 guidance 函式(傳入 `opts.json`)。

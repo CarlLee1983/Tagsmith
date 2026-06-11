@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import { runInit } from "./init.js";
 import { runList } from "./list.js";
@@ -8,6 +9,9 @@ import { runGuide } from "./guide.js";
 import { runCheck } from "./check.js";
 import { printError } from "./ui.js";
 
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json") as { version: string };
+
 const program = new Command();
 
 program
@@ -15,12 +19,12 @@ program
   .description(
     "Define git tag specs, view tags, and generate the next git tag safely.",
   )
-  .version("0.1.0");
+  .version(version);
 
 program.addHelpText(
   "beforeAll",
-  "\n  Tagsmith — define a tag spec, then safely compute and create git tags.\n" +
-    "  First time here? Run `tagsmith init`, or `tagsmith guide` for a walkthrough.\n",
+  "\n  Tagsmith (@carllee1983/tagsmith) — define a tag spec, then safely compute and create git tags.\n" +
+    "  No config yet? Try `tagsmith next` (zero-config semver), `tagsmith init`, or `tagsmith guide`.\n",
 );
 
 program.addHelpText(
@@ -39,7 +43,7 @@ Examples:
 
 program
   .command("init")
-  .description("Create a .tagsmith.json tag spec for this repo")
+  .description("Create a .tagsmith.json tag spec for this repo (optional; zero-config works without it)")
   .option("--pattern <pattern>", "tag pattern, must contain {version}")
   .option("--model <type>", "version model: semver | calver | build")
   .option("--initial-version <version>", "initial version")

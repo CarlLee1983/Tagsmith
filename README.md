@@ -1,28 +1,55 @@
 # Tagsmith
 
+[![npm version](https://img.shields.io/npm/v/@carllee1983/tagsmith.svg)](https://www.npmjs.com/package/@carllee1983/tagsmith)
+
 定義專案的 git tag 規格、檢視現有 tag，並安全地產生下一個 git tag——避免順序錯亂或格式不一致。
 
 支援 **SemVer**、**CalVer** 與 **build number** 三種版本模型，tag 樣式可自訂（例如 `v{version}`、`release/{version}`）。
 
-- 🏷️ **規格化** — 用一個 `.tagsmith.json` 定義全專案的 tag 樣式與版本模型
+- 🏷️ **規格化** — 用 `.tagsmith.json` 定義全專案的 tag 樣式與版本模型（可選）
 - 🔍 **可檢視** — 依語義排序列出 tag，標示格式 / 順序 / 重複異常
 - 🛡️ **防呆** — 建立前驗證格式、版本可解析、嚴格遞增、tag 不重複
+- 🚀 **零設定** — 無設定檔時自動以 semver 推斷 pattern，讀 repo 既有 tag 即可用
 - 🧩 **可擴充** — 版本模型走介面抽象，新增不動核心邏輯
 
 ## 安裝
 
 ```bash
-npm install -g tagsmith
+# 全域安裝（指令名稱仍為 tagsmith）
+npm install -g @carllee1983/tagsmith
+
 # 或免安裝直接執行
-npx tagsmith <command>
+npx @carllee1983/tagsmith <command>
+
+# 專案相依（CI / husky hook 常用）
+npm install -D @carllee1983/tagsmith
+# 裝在本機後可直接：npx tagsmith <command>
 ```
+
+npm：[https://www.npmjs.com/package/@carllee1983/tagsmith](https://www.npmjs.com/package/@carllee1983/tagsmith)
 
 需求：Node.js ≥ 18、git。
 
 ## 快速開始
 
+### 零設定（無 `.tagsmith.json`）
+
+已有 semver 風格 tag（如 `v0.1.0`）的 repo 可直接使用：
+
 ```bash
-# 1. 在 repo 內定義 tag 規格（互動式）
+tagsmith list                    # 檢視既有 tag
+tagsmith next                    # 預覽下一個 tag（預設 patch bump）
+tagsmith next --level minor      # 例如 v0.1.0 → v0.2.0
+tagsmith create --push           # 建立並推送
+```
+
+無設定檔時預設 semver、`v{version}` pattern；會從既有 tag 自動推斷格式（如 `{version}`）。
+團隊協作建議仍執行 `init` 並 commit `.tagsmith.json` 以固定規格。
+
+### 完整流程（自訂規格）
+
+```bash
+# 1. 在 repo 內定義 tag 規格（互動式，可選）
 tagsmith init
 
 # 不熟指令？走一次互動式導覽
@@ -99,7 +126,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 
 Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；現有使用者**零修改**即可繼續使用。
 
-可在檔案加上 `"$schema": "./node_modules/tagsmith/schema.json"` 取得編輯器補全與驗證。
+可在檔案加上 `"$schema": "./node_modules/@carllee1983/tagsmith/schema.json"` 取得編輯器補全與驗證。
 
 ### 三種版本模型
 
@@ -154,7 +181,7 @@ Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；
 ## 指令
 
 ### `tagsmith init`
-互動式產生 `.tagsmith.json`。
+互動式產生 `.tagsmith.json`（**可選**；zero-config 模式下可略過，團隊協作仍建議 commit 設定檔）。
 
 | 旗標 | 說明 |
 |------|------|
@@ -296,14 +323,14 @@ tagsmith list --all
 ## 搭配 husky 守 tag
 
 可用 git `pre-push` hook 在推送時自動驗證 tag，擋下不符規格者。
-詳見 [docs/husky-pre-push.md](docs/husky-pre-push.md)。
+詳見 [docs/husky-pre-push.md](docs/husky-pre-push.md)（需安裝 `@carllee1983/tagsmith`）。
 
 ## 結束代碼
 
 | 代碼 | 意義 |
 |:---:|------|
 | `0` | 成功（含 `--dry-run`） |
-| `1` | 失敗：缺設定檔、非 git repo、驗證未通過、git 指令錯誤等（訊息走 stderr） |
+| `1` | 失敗：非 git repo、驗證未通過、git 指令錯誤等（訊息走 stderr） |
 
 ## 設計
 

@@ -45,6 +45,13 @@ Git 操作用 `node:child_process` 的 `execFile`，不引入重依賴、不經 
   拒絕未補零 / 前導零字串，避免假重複。勿移除。
 - **build number 精度**：`build.parse` 限 15 位數，避免超過 `MAX_SAFE_INTEGER`。
 
+## 專案資訊
+
+- **npm 套件**：[`@carllee1983/tagsmith`](https://www.npmjs.com/package/@carllee1983/tagsmith)
+- **CLI 指令名稱**：`tagsmith`（全域或專案 devDependency 安裝後）
+- **Zero-config**：無 `.tagsmith.json` 時，`next` / `create` / `list` / `check` 以 semver
+  預設 + pattern 推斷運作；`init` 可選
+
 ## 常用指令
 
 ```bash

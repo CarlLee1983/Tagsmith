@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/CMG/tagsmith/schema.json",
+  "$id": "https://github.com/CarlLee1983/Tagsmith/schema.json",
   "title": "Tagsmith config",
   "description": "Tag specification for the tagsmith CLI (.tagsmith.json).",
   "type": "object",

@@ -15,7 +15,7 @@
 
 | 項目 | 選擇 | 理由 |
 |------|------|------|
-| 語言 / Runtime | Node.js 22 + TypeScript | 跨平台、`npx tagsmith` 易發佈 |
+| 語言 / Runtime | Node.js 22 + TypeScript | 跨平台、`npx @carllee1983/tagsmith` 易發佈 |
 | CLI 框架 | commander | 輕量、成熟 |
 | 互動式 init | @clack/prompts | 優質互動 UX |
 | 顏色輸出 | picocolors | 體積極小 |
@@ -47,7 +47,7 @@ tests/         vitest 單元 + 整合（臨時 git repo）
 
 ```jsonc
 {
-  "$schema": "./node_modules/tagsmith/schema.json",
+  "$schema": "./node_modules/@carllee1983/tagsmith/schema.json",
   "pattern": "v{version}",        // 必含 {version} 佔位符
   "model": {
     "type": "semver",             // "semver" | "calver" | "build"
@@ -106,7 +106,7 @@ type BumpLevel = "major" | "minor" | "patch" | "prerelease" | "auto"
 ## 錯誤處理
 
 - 邊界驗證：config（zod）、git repo 存在性、pattern 含 `{version}`。
-- 找不到 config → 提示先 `tagsmith init`。
+- 找不到 config → 使用 zero-config semver 預設（0.2.0+）；自訂規格可執行 `tagsmith init`。
 - 非 git repo → 明確錯誤。
 - create 違反順序 / 重複 → 阻擋並說明，提供覆寫旗標。
 - 錯誤訊息對使用者友善；細節走 stderr。
