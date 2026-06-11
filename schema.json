@@ -54,6 +54,41 @@
     "push": {
       "type": "boolean",
       "description": "Default push behaviour for `tagsmith create`."
+    },
+    "mergePolicy": {
+      "type": "object",
+      "description": "Optional branch merge guardrails enforced by `tagsmith merge-check` via git hooks.",
+      "additionalProperties": false,
+      "required": ["protectedBranches"],
+      "properties": {
+        "protectedBranches": {
+          "type": "object",
+          "description": "Map of protected branch name -> merge rule. Only the current branch is checked; others pass.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Set exactly one of allow (whitelist) or deny (blacklist). Sources support glob (* and ?).",
+            "additionalProperties": false,
+            "oneOf": [{ "required": ["allow"] }, { "required": ["deny"] }],
+            "properties": {
+              "allow": {
+                "type": "array",
+                "description": "Only these sources may merge in; all others are blocked.",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "deny": {
+                "type": "array",
+                "description": "These sources are blocked; all others pass.",
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "onUnknownSource": {
+          "enum": ["block", "allow"],
+          "default": "block",
+          "description": "Behaviour when the merge source branch cannot be resolved."
+        }
+      }
     }
   }
 }

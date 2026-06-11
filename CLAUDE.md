@@ -37,6 +37,19 @@ Git 操作用 `node:child_process` 的 `execFile`，不引入重依賴、不經 
 - **選線**：CLI 各指令以 `selectLine(config, flags.tag)` 取得目標線；省略 `--tag` 時
   取 `config.default`；線名不存在時錯誤訊息列出可用名單。
 
+## 合併政策（merge policy）
+
+- **與 tag 邏輯解耦**：獨立放在 `src/core/merge-policy/`，共用既有 `src/git/git.ts`。
+  改動不應影響任何 tag 相關命令；`mergePolicy` 為 `.tagsmith.json` 選配區塊，缺省即關閉。
+- **模組單一職責**：`schema.ts`（zod 驗證 + allow/deny 二選一 refine）→ `match.ts`
+  （glob→regex，純函式）→ `validate.ts`（套政策，純函式不碰 git）→ `resolve.ts`
+  （查 git 解析來源分支）；CLI 的 `merge-check.ts` 組合上述三者並負責副作用（回滾 / exit code）。
+- **glob 語意刻意非 POSIX**：`*` 比對含 `/`（跨多層），見 `match.ts` 註解，勿改回 `[^/]*`。
+- **緊急略過**：`HUSKY=0` 或 `TAGSMITH_SKIP=1` 跳過 `merge-check`（沿用原 sh 腳本語意）。
+- **hooks 寫入帶標記**：`# tagsmith-merge-policy (managed)`；install 具原子性（pre-flight
+  檢查全部 hook 才寫），uninstall 只移除帶標記者。hook 內以 `npx --no -- tagsmith ...` 呼叫
+  （勿用已失效的 `--no-install`）。
+
 ## 已知陷阱（過往修正，勿回退）
 
 - **CalVer 相鄰數字 token**：matcher 用固定寬度（`TOKEN_REGEX`），不可改回貪婪 `\d+`，
