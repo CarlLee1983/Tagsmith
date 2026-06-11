@@ -31,6 +31,18 @@ npm run build            # 編譯到 dist/
 
 設計細節見 [設計文件](docs/superpowers/specs/2026-06-10-tagsmith-design.md)。
 
+## 設定格式
+
+`.tagsmith.json` 支援兩種格式，均由 `src/core/config.ts` 的 `parseConfig` 正規化成
+內部 `TagsmithConfig { lines: TagLine[], default: string }` 結構：
+
+- **多線格式**（新）：頂層 `tags` 陣列，每個元素為一條 `TagLine`（`name`、`pattern`、
+  `model`、`initialVersion`、`push`），選填頂層 `default`（省略取 `tags[0].name`）。
+- **扁平格式**（舊，仍相容）：頂層直接放 `pattern`、`model`、`initialVersion`、`push`；
+  載入時自動包成 `name: "default"` 的單線結構，行為與改版前完全一致。
+
+新增設定欄位時，`lineSchema`（多線路徑）與 `legacyConfigSchema`（舊格式路徑）可能都需要調整。
+
 ## 新增一種版本模型
 
 版本模型實作 `src/types.ts` 的 `VersionModel` 介面（`parse` / `compare` /
@@ -38,7 +50,8 @@ npm run build            # 編譯到 dist/
 
 1. 在 `src/core/models/<name>.ts` 建立 `create<Name>Model()` 工廠函式。
 2. 在 `src/types.ts` 的 `ModelConfig` 聯集加入設定型別。
-3. 在 `src/core/config.ts` 的 zod schema 加入對應 discriminated 分支。
+3. 在 `src/core/config.ts` 的 `modelSchema`（discriminated union）加入對應分支；
+   `lineSchema` 與 `legacyConfigSchema` 共用此 schema，無需重複修改。
 4. 在 `src/core/models/index.ts` 的 `createModel()` switch 加上分支。
 5. 在 `schema.json` 補上 JSON Schema 分支。
 6. 在 `src/cli/init.ts` 加入互動式 / 預設值。

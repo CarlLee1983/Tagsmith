@@ -24,6 +24,19 @@ Git 操作用 `node:child_process` 的 `execFile`，不引入重依賴、不經 
 - **安全保證不可退化**：建立 tag 前必須驗證「格式符合 pattern、版本可解析、嚴格遞增、
   不重複」。改動 `plan.ts` / 模型 `bump`/`parse` 時，務必保留這些不變式並補測試。
 
+## 設定格式與多線架構
+
+- **內部形狀**：`TagsmithConfig` 一律正規化為 `{ lines: TagLine[], default: string }`。
+  所有 core / CLI 函式操作此正規化結構，不直接碰原始 JSON。
+- **舊扁平格式自動升格**：`parseConfig` 在載入時判斷是否為舊格式（無 `tags` 欄位），
+  自動包成單一 `TagLine`（`name: "default"`），回傳結構與多線格式完全相同。
+  舊格式使用者**零修改**即相容。
+- **tag → 線的歸屬**：`assignTagsToLines`（`src/core/lines.ts`）依 `lines` **宣告順序**
+  找第一條 `compilePattern(line.pattern).extract(tag) !== null` 的線；多線 pattern 重疊
+  時先宣告者勝（tie-break）。不符任何線的 tag 進 `orphans`。
+- **選線**：CLI 各指令以 `selectLine(config, flags.tag)` 取得目標線；省略 `--tag` 時
+  取 `config.default`；線名不存在時錯誤訊息列出可用名單。
+
 ## 已知陷阱（過往修正，勿回退）
 
 - **CalVer 相鄰數字 token**：matcher 用固定寬度（`TOKEN_REGEX`），不可改回貪婪 `\d+`，

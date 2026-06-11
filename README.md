@@ -40,14 +40,64 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 
 ## 設定檔 `.tagsmith.json`
 
-`tagsmith init` 會在 repo 根目錄產生設定檔。欄位：
+`tagsmith init` 會在 repo 根目錄產生設定檔。
+
+### 多條 tag 線
+
+一份設定檔可定義多條獨立的 tag 線，各線有自己的 pattern 與版本模型，彼此獨立遞增：
+
+```json
+{
+  "tags": [
+    {
+      "name": "app",
+      "pattern": "v{version}",
+      "model": { "type": "semver", "allowPrerelease": true },
+      "initialVersion": "0.1.0",
+      "push": false
+    },
+    {
+      "name": "release",
+      "pattern": "release/{version}",
+      "model": { "type": "calver", "format": "YYYY.MM.MICRO" },
+      "initialVersion": "2026.06.0",
+      "push": true
+    }
+  ],
+  "default": "app"
+}
+```
+
+每條線的欄位：
 
 | 欄位 | 必填 | 說明 |
 |------|:---:|------|
-| `pattern` | ✓ | tag 樣式，**必含** `{version}` 佔位符。例：`v{version}`、`release/{version}`、`{version}-stable` |
+| `name` | ✓ | 線名，全陣列唯一，供 `--tag` 指定 |
+| `pattern` | ✓ | tag 樣式，**必含** `{version}` 佔位符。例：`v{version}`、`release/{version}` |
 | `model` | ✓ | 版本模型物件（見下） |
 | `initialVersion` | ✓ | 無既有合規 tag 時的起點 |
 | `push` | | `create` 是否預設 push（預設 `false`） |
+
+頂層選填欄位：
+
+| 欄位 | 說明 |
+|------|------|
+| `default` | 預設操作線名；省略時取 `tags[0].name` |
+
+### 舊格式（仍相容）
+
+既有的單線扁平格式無需修改，仍可正常載入：
+
+```json
+{
+  "pattern": "v{version}",
+  "model": { "type": "semver", "allowPrerelease": true },
+  "initialVersion": "0.1.0",
+  "push": false
+}
+```
+
+Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；現有使用者**零修改**即可繼續使用。
 
 可在檔案加上 `"$schema": "./node_modules/tagsmith/schema.json"` 取得編輯器補全與驗證。
 
@@ -60,7 +110,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 | `build` | `0042` | `padding`（補零位數，預設 `0`） | 單調 +1 |
 
 <details>
-<summary>各模型設定範例</summary>
+<summary>各模型設定範例（舊格式）</summary>
 
 **SemVer**（`v1.2.3`）
 
@@ -116,16 +166,20 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 | `-y, --yes` | 非互動，使用旗標 / 預設值 |
 
 ### `tagsmith list` (`ls`)
-列出所有 git tag，依規格解析後由新到舊排序，並標示異常 tag：
+列出 git tag，依規格解析後由新到舊排序，並標示異常 tag：
 **不符樣式**（`pattern-mismatch`）、**版本無法解析**（`unparseable-version`）、
 **重複版本**（`duplicate-version`）。
+
+預設只列出 `default` 線的 tag；多線設定可用 `--tag` 指定線或 `--all` 一次列出所有線。
 
 | 旗標 | 說明 |
 |------|------|
 | `--json` | 輸出結構化 JSON |
+| `-t, --tag <name>` | 只列出指定線的 tag |
+| `--all` | 列出每條線（各自分組）與無主 tag（Unassigned / orphan tags） |
 
 ```jsonc
-// tagsmith list --json
+// tagsmith list --json（單線或指定 --tag）
 {
   "conforming": [
     { "tag": "v1.2.0", "version": "1.2.0" },
@@ -138,17 +192,49 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 }
 ```
 
+```jsonc
+// tagsmith list --all --json（多線）
+{
+  "lines": [
+    {
+      "line": "app",
+      "conforming": [{ "tag": "v1.2.0", "version": "1.2.0" }],
+      "anomalies": [],
+      "latest": "v1.2.0"
+    },
+    {
+      "line": "release",
+      "conforming": [{ "tag": "release/2026.06.0", "version": "2026.06.0" }],
+      "anomalies": [],
+      "latest": "release/2026.06.0"
+    }
+  ],
+  "orphans": ["legacy-tag"]
+}
+```
+
 ### `tagsmith check`
 驗證指定 tag 是否符合規格；不帶參數時檢查 repo 內所有既有 tag。
 適合用於 CI 或 git hook（exit 0 = 全部合規，exit 1 = 發現異常）。
 
+多線設定下，每個 tag 會對照所有線進行比對，並在結果中回報歸屬線（或 `null` 表示無主）。
+`--tag <name>` 可限定只對某條線驗證。
+
 | 旗標 | 說明 |
 |------|------|
 | `--json` | 輸出結構化 JSON |
+| `-t, --tag <name>` | 只對指定線驗證 |
 
-`--json` 輸出格式：
-- 指定 tag 時：`{ "ok": boolean, "checks": [{ "tag": string, "ok": boolean, "anomaly": string | null }] }`
-- 不帶參數（lint 全 repo）時：`{ "ok": boolean, "anomalies": [{ "tag": string, "anomaly": string }] }`
+```jsonc
+// tagsmith check v1.2.3 "release/2026.06.1" junk --json
+{
+  "results": [
+    { "raw": "v1.2.3",           "line": "app",     "ok": true,  "anomaly": null },
+    { "raw": "release/2026.06.1","line": "release",  "ok": true,  "anomaly": null },
+    { "raw": "junk",             "line": null,        "ok": false, "anomaly": "pattern-mismatch" }
+  ]
+}
+```
 
 ### `tagsmith next`
 計算並印出下一個 tag，**不**實際建立。保證結果嚴格大於目前最大合規版本；
@@ -158,24 +244,26 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 |------|------|
 | `-l, --level <level>` | `major` \| `minor` \| `patch` \| `prerelease` \| `auto`（預設 `patch`） |
 | `--json` | 輸出 JSON |
+| `-t, --tag <name>` | 操作指定線（預設：設定檔的 `default` 線） |
 
 ```jsonc
 // tagsmith next --level minor --json
-{ "tag": "v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false }
+{ "tag": "v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false, "line": "app" }
 ```
 
 ### `tagsmith create`
 建立下一個（或以 `--set-version` 指定的）tag。建立前驗證：格式符合 pattern、
-版本可解析、嚴格遞增、tag 不重複。
+版本可解析、嚴格遞增、tag 不重複。push 行為優先取命令列 `--push`，其次取該線設定的 `push`。
 
 | 旗標 | 說明 |
 |------|------|
 | `-l, --level <level>` | 遞增等級（同 `next`） |
 | `--set-version <version>` | 改用指定版本，而非自動遞增 |
 | `-m, --message <message>` | 建立 annotated tag |
-| `--push` | 建立後推送（覆寫設定檔 `push`） |
+| `--push` | 建立後推送（覆寫該線的 `push` 設定） |
 | `--dry-run` | 只預覽，不建立 |
 | `--allow-out-of-order` | 允許版本不大於現有最大值 |
+| `-t, --tag <name>` | 操作指定線（預設：設定檔的 `default` 線） |
 
 ## 常見情境
 
@@ -194,6 +282,15 @@ tagsmith create --set-version 1.0.5 --allow-out-of-order
 
 # 先看會發生什麼，不動 repo
 tagsmith create -l major --dry-run
+
+# 多線：在 release 線建立下一個 tag
+tagsmith create --tag release
+
+# 多線：預覽 release 線的下一個 tag
+tagsmith next --tag release --json
+
+# 多線：一次檢視所有線的 tag 狀況（含無主 tag）
+tagsmith list --all
 ```
 
 ## 搭配 husky 守 tag
