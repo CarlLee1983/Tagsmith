@@ -2,7 +2,7 @@ import { loadConfig, MissingConfigError } from "../core/config.js";
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { classify } from "../core/analyze.js";
-import { assignTagsToLines, selectLine } from "../core/lines.js";
+import { selectLine } from "../core/lines.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import { color, info, printError, success } from "./ui.js";
 import { printFirstRunHint } from "./guidance.js";
