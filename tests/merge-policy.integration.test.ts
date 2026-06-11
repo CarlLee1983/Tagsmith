@@ -102,6 +102,39 @@ describe("runMergeCheck", () => {
     expect(git(dir, ["rev-parse", "HEAD"]).trim()).toBe(mainTip);
   });
 
+  it("blocks a disallowed in-progress merge in merge-head mode", async () => {
+    // diverge develop and main so the merge is a true (non-ff) merge
+    git(dir, ["checkout", "-q", "-b", "develop"]);
+    git(dir, ["commit", "--allow-empty", "-q", "-m", "develop work"]);
+    git(dir, ["checkout", "-q", "main"]);
+    git(dir, ["commit", "--allow-empty", "-q", "-m", "main work"]);
+    // start the merge but stop before committing → leaves MERGE_HEAD on disk
+    try {
+      git(dir, ["merge", "--no-ff", "--no-commit", "-q", "develop"]);
+    } catch {
+      // --no-commit can exit non-zero by design when it stops for the commit; ignore
+    }
+    const code = await silence(() =>
+      runMergeCheck(dir, { mode: "merge-head" }),
+    );
+    expect(code).toBe(1);
+  });
+
+  it("honours HUSKY=0", async () => {
+    git(dir, ["checkout", "-q", "-b", "develop"]);
+    const prev = process.env.HUSKY;
+    process.env.HUSKY = "0";
+    try {
+      const code = await silence(() =>
+        runMergeCheck(dir, { mode: "post-merge" }),
+      );
+      expect(code).toBe(0);
+    } finally {
+      if (prev === undefined) delete process.env.HUSKY;
+      else process.env.HUSKY = prev;
+    }
+  });
+
   it("honours TAGSMITH_SKIP=1", async () => {
     git(dir, ["checkout", "-q", "-b", "develop"]);
     const prev = process.env.TAGSMITH_SKIP;

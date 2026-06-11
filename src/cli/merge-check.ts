@@ -32,12 +32,13 @@ export async function runMergeCheck(
     const policy = await loadMergePolicy(cwd);
     if (!policy) return 0;
 
+    // fallback guards programmatic callers; commander supplies the CLI default
     const mode = flags.mode ?? "merge-head";
     const current = await currentBranch({ cwd });
 
     if (current === "") {
       printError(
-        "merge-policy: detached HEAD — refusing merge on a protected branch.",
+        "merge-policy: detached HEAD — branch name cannot be determined.",
       );
       return 1;
     }
