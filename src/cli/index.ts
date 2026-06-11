@@ -32,6 +32,7 @@ Examples:
   $ tagsmith list                          Inspect existing tags
   $ tagsmith check v1.2.3                  Validate a tag against the spec
   $ tagsmith next --level minor            Preview the next tag
+  $ tagsmith next --tag release            Compute next on a named tag line
   $ tagsmith create --level minor --push   Create and push the next tag
 `,
 );
@@ -127,6 +128,7 @@ Examples:
   $ tagsmith create -l minor -m "..."      Create an annotated minor tag
   $ tagsmith create --set-version 2.0.0    Create an explicit version
   $ tagsmith create --dry-run              Preview without creating
+  $ tagsmith create --tag release          Create the next tag on a named tag line
 `,
 );
 
