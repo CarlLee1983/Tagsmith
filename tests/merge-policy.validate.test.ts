@@ -20,6 +20,13 @@ describe("validateMerge", () => {
     expect(validateMerge(policy, "develop", "main").ok).toBe(true);
   });
 
+  it("permits a branch merging into itself (pull/sync of own remote)", () => {
+    // allow-list branch
+    expect(validateMerge(policy, "develop", "develop").ok).toBe(true);
+    // deny-list branch
+    expect(validateMerge(policy, "main", "main").ok).toBe(true);
+  });
+
   it("allow-list: blocks an unlisted source", () => {
     const d = validateMerge(policy, "develop", "feature/x");
     expect(d.ok).toBe(false);

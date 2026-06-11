@@ -23,6 +23,16 @@
 - 環境變數 `TAGSMITH_SKIP=1` 或 `HUSKY=0` 可緊急略過合併檢查。
 - `schema.json` 擴充 `mergePolicy` 結構，提供編輯器補全與驗證。
 
+### 修正
+
+- **post-merge 不再誤殺正常合併 commit**：`merge-check --mode post-merge` 原本把本次
+  建立的 merge commit（`--no-ff` 或分歧合併）誤判為 fast-forward，因解析不到來源而
+  `reset --hard` 還原已被 `prepare-commit-msg` 放行的合併。改為僅在 HEAD 確實是
+  fast-forward（非本次新建的 merge commit）時才於 post-merge 套用政策。
+- **允許分支拉取自身遠端**：在受保護分支上 fast-forward `git pull`（HEAD 推進到自身
+  `origin/<branch>`）原本來源解析為 null 而被 `onUnknownSource` 封鎖。現視為分支對自身的
+  同步（非跨分支合併），一律放行。
+
 ## [0.2.1] - 2026-06-11
 
 ### 修正

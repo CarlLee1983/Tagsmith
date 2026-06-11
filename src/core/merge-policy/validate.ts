@@ -16,6 +16,11 @@ export function validateMerge(
   const rule = policy.protectedBranches[current];
   if (!rule) return { ok: true };
 
+  // A branch fast-forwarding/pulling its own remote-tracking ref reports itself
+  // as the source. Merging a branch into itself is a sync, never a cross-branch
+  // merge, so it is always permitted.
+  if (source === current) return { ok: true };
+
   if (source === null) {
     return policy.onUnknownSource === "allow"
       ? { ok: true }

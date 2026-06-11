@@ -55,12 +55,19 @@ export async function resolveFfSource(
   current: string,
 ): Promise<string | null> {
   const newHead = await revParse(opts, "HEAD");
-  const candidates = (await branchesPointingAt(opts, newHead))
-    .map(normalizeBranch)
-    .filter((n) => n !== current);
+  const raw = await branchesPointingAt(opts, newHead);
+  const candidates = raw.map(normalizeBranch).filter((n) => n !== current);
   // Prefer well-known integration branches, else first alphabetical.
   for (const preferred of ["main", "develop", "testing"]) {
     if (candidates.includes(preferred)) return preferred;
   }
-  return candidates.length > 0 ? candidates.sort()[0]! : null;
+  if (candidates.length > 0) return candidates.sort()[0]!;
+  // No other branch points here. If a remote-tracking ref of the current branch
+  // does (e.g. origin/main when HEAD == main), this fast-forward is a pull/sync
+  // of the branch into itself — report it as such so the policy allows it.
+  // (A genuinely unresolvable source leaves only the local branch ref → null.)
+  const selfRemote = raw.some(
+    (r) => r !== current && normalizeBranch(r) === current,
+  );
+  return selfRemote ? current : null;
 }

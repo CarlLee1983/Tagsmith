@@ -103,6 +103,41 @@ describe("runMergeCheck", () => {
     expect(git(dir, ["rev-parse", "HEAD"]).trim()).toBe(mainTip);
   });
 
+  it("leaves an allowed non-ff merge commit intact in post-merge mode", async () => {
+    // main is protected with deny:["develop"], so a feature/x source is allowed.
+    // The merge commit is authored here, so prepare-commit-msg (merge-head) is
+    // what validates it; post-merge must not re-check and roll back the merge.
+    git(dir, ["checkout", "-q", "-b", "feature/x"]);
+    git(dir, ["commit", "--allow-empty", "-q", "-m", "feature work"]);
+    git(dir, ["checkout", "-q", "main"]);
+    git(dir, ["commit", "--allow-empty", "-q", "-m", "main work"]);
+    git(dir, ["merge", "--no-ff", "-q", "-m", "merge feature/x", "feature/x"]);
+    const mergeCommit = git(dir, ["rev-parse", "HEAD"]).trim();
+    const code = await silence(() =>
+      runMergeCheck(dir, { mode: "post-merge" }),
+    );
+    expect(code).toBe(0);
+    expect(git(dir, ["rev-parse", "HEAD"]).trim()).toBe(mergeCommit);
+  });
+
+  it("allows a fast-forward pull of the protected branch's own remote", async () => {
+    // Simulate `git pull` fast-forwarding main onto origin/main: the new tip is
+    // pointed at only by main and its remote-tracking ref, so the "source" is
+    // main itself — a self-pull, not a cross-branch merge, and must be allowed.
+    const before = git(dir, ["rev-parse", "HEAD"]).trim();
+    git(dir, ["commit", "--allow-empty", "-q", "-m", "upstream work"]);
+    const ahead = git(dir, ["rev-parse", "HEAD"]).trim();
+    git(dir, ["update-ref", "refs/remotes/origin/main", ahead]);
+    git(dir, ["reset", "--hard", "-q", before]); // local main now behind origin/main
+    git(dir, ["update-ref", "ORIG_HEAD", before]);
+    git(dir, ["merge", "-q", "--ff-only", "origin/main"]);
+    const code = await silence(() =>
+      runMergeCheck(dir, { mode: "post-merge" }),
+    );
+    expect(code).toBe(0);
+    expect(git(dir, ["rev-parse", "HEAD"]).trim()).toBe(ahead);
+  });
+
   it("blocks a disallowed in-progress merge in merge-head mode", async () => {
     // diverge develop and main so the merge is a true (non-ff) merge
     git(dir, ["checkout", "-q", "-b", "develop"]);

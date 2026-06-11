@@ -49,9 +49,18 @@ export async function runMergeCheck(
 
     if (mode === "post-merge") {
       rollback = await revParseVerify({ cwd }, "ORIG_HEAD");
-      if ((await parentCount({ cwd }, "HEAD")) > 2) return 0; // octopus
       const newHead = await revParse({ cwd }, "HEAD");
       if (!rollback || rollback === newHead) return 0;
+      // A merge commit authored by this merge (>=2 parents whose first parent
+      // is the pre-merge HEAD) was already validated by the merge-head hook;
+      // its source branch no longer points at HEAD, so re-checking here would
+      // resolve no source and wrongly roll the merge back. Only true
+      // fast-forwards (which create no commit and skip merge-head) need
+      // post-merge enforcement. This also subsumes the octopus case.
+      if ((await parentCount({ cwd }, "HEAD")) >= 2) {
+        const firstParent = await revParseVerify({ cwd }, "HEAD^1");
+        if (firstParent === rollback) return 0;
+      }
       if (!(await isAncestor({ cwd }, rollback, newHead))) return 0; // not ff
       source = await resolveFfSource({ cwd }, current);
     } else {
