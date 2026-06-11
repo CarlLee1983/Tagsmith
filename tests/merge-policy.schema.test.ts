@@ -92,4 +92,9 @@ describe("loadMergePolicy", () => {
     const policy = await loadMergePolicy(dir);
     expect(policy!.protectedBranches.develop).toEqual({ allow: ["main"] });
   });
+
+  it("throws MergePolicyError when .tagsmith.json contains invalid JSON", async () => {
+    await writeFile(path.join(dir, ".tagsmith.json"), "{ not json }");
+    await expect(loadMergePolicy(dir)).rejects.toThrow(MergePolicyError);
+  });
 });

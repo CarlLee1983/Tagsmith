@@ -2,6 +2,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { CONFIG_FILENAME } from "../config.js";
 
 export class MergePolicyError extends Error {}
 
@@ -48,7 +49,7 @@ export function parseMergePolicy(raw: unknown): MergePolicy | null {
 export async function loadMergePolicy(cwd: string): Promise<MergePolicy | null> {
   let text: string;
   try {
-    text = await readFile(path.join(cwd, ".tagsmith.json"), "utf8");
+    text = await readFile(path.join(cwd, CONFIG_FILENAME), "utf8");
   } catch {
     return null;
   }
@@ -57,7 +58,7 @@ export async function loadMergePolicy(cwd: string): Promise<MergePolicy | null> 
     json = JSON.parse(text);
   } catch (err) {
     throw new MergePolicyError(
-      `.tagsmith.json is not valid JSON: ${(err as Error).message}`,
+      `${CONFIG_FILENAME} is not valid JSON: ${(err as Error).message}`,
     );
   }
   return parseMergePolicy(json);
