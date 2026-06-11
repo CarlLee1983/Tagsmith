@@ -29,7 +29,10 @@ export function validateMerge(
       : { ok: false, reason: `${current} may only merge: ${rule.allow.join(", ")}` };
   }
 
-  const denied = rule.deny!.some((p) => matchSource(p, source));
+  // rule.deny is guaranteed present when rule.allow is absent: the schema
+  // refine enforces exactly one of allow / deny. `?? []` keeps this safe even
+  // if that invariant is ever weakened.
+  const denied = (rule.deny ?? []).some((p) => matchSource(p, source));
   return denied
     ? { ok: false, reason: `${current} must not merge ${source}` }
     : { ok: true };
