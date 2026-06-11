@@ -7,6 +7,7 @@ import { runNext } from "./next.js";
 import { runCreate } from "./create.js";
 import { runGuide } from "./guide.js";
 import { runCheck } from "./check.js";
+import { runMergeCheck } from "./merge-check.js";
 import { printError } from "./ui.js";
 
 const require = createRequire(import.meta.url);
@@ -135,6 +136,18 @@ Examples:
   $ tagsmith create --tag release          Create the next tag on a named tag line
 `,
 );
+
+program
+  .command("merge-check")
+  .description("Enforce the mergePolicy for a protected branch (used by git hooks)")
+  .option(
+    "--mode <mode>",
+    "hook context: merge-head | post-merge",
+    "merge-head",
+  )
+  .action(async (opts: { mode?: "merge-head" | "post-merge" }) => {
+    process.exitCode = await runMergeCheck(process.cwd(), { mode: opts.mode });
+  });
 
 program.parseAsync(process.argv).catch((err) => {
   printError(err);
