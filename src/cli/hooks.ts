@@ -1,6 +1,5 @@
 // src/cli/hooks.ts
 import { access, chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { revParse } from "../git/git.js";
 import { info, printError, success, warn } from "./ui.js";
@@ -19,7 +18,7 @@ const HOOKS: HookSpec[] = [
       "#!/usr/bin/env sh",
       MARKER,
       'case "$2" in',
-      "  merge) npx --no-install tagsmith merge-check --mode merge-head || exit $? ;;",
+      "  merge) npx --no -- tagsmith merge-check --mode merge-head || exit $? ;;",
       "esac",
       "",
     ].join("\n"),
@@ -29,7 +28,7 @@ const HOOKS: HookSpec[] = [
     body: [
       "#!/usr/bin/env sh",
       MARKER,
-      "npx --no-install tagsmith merge-check --mode post-merge || exit $?",
+      "npx --no -- tagsmith merge-check --mode post-merge || exit $?",
       "",
     ].join("\n"),
   },
@@ -41,7 +40,7 @@ export interface HooksInstallFlags {
 
 /** Resolve the directory hooks should be written to: .husky if present, else .git/hooks. */
 async function resolveHooksDir(cwd: string): Promise<string> {
-  if (existsSync(path.join(cwd, ".husky"))) return path.join(cwd, ".husky");
+  if (await existsFile(path.join(cwd, ".husky"))) return path.join(cwd, ".husky");
   // `git rev-parse --git-dir` returns the git dir (relative or absolute).
   const raw = (await revParse({ cwd }, "--git-dir")).trim();
   const gitDir = path.isAbsolute(raw) ? raw : path.join(cwd, raw);
@@ -65,6 +64,7 @@ export async function runHooksInstall(
     const dir = await resolveHooksDir(cwd);
     await mkdir(dir, { recursive: true });
 
+    // Pre-flight: refuse before writing anything if any hook is foreign.
     for (const hook of HOOKS) {
       const file = path.join(dir, hook.name);
       if (await existsFile(file)) {
@@ -76,6 +76,10 @@ export async function runHooksInstall(
           return 1;
         }
       }
+    }
+
+    for (const hook of HOOKS) {
+      const file = path.join(dir, hook.name);
       await writeFile(file, hook.body, "utf8");
       await chmod(file, 0o755);
       success(`installed ${path.relative(cwd, file)}`);

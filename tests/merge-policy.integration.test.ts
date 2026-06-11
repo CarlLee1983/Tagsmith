@@ -204,4 +204,22 @@ describe("runHooksInstall", () => {
       stat(path.join(dir, ".git", "hooks", "post-merge")),
     ).rejects.toThrow();
   });
+
+  it("overwrites a foreign hook when --force is set", async () => {
+    const hookPath = path.join(dir, ".git", "hooks", "post-merge");
+    await writeFile(hookPath, "#!/bin/sh\necho custom\n");
+    const code = await silence(() => runHooksInstall(dir, { force: true }));
+    expect(code).toBe(0);
+    const post = await readFile(hookPath, "utf8");
+    expect(post).toContain("tagsmith merge-check --mode post-merge");
+    expect(post).not.toContain("echo custom");
+  });
+
+  it("uninstall skips hooks that are not tagsmith-managed", async () => {
+    const hookPath = path.join(dir, ".git", "hooks", "post-merge");
+    await writeFile(hookPath, "#!/bin/sh\necho custom\n");
+    const code = await silence(() => runHooksUninstall(dir));
+    expect(code).toBe(0);
+    expect(await readFile(hookPath, "utf8")).toContain("echo custom");
+  });
 });
