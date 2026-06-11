@@ -408,6 +408,74 @@ describe("command runners (in-process)", () => {
     });
   });
 
+  describe("list --tag (single-line selection)", () => {
+    it("shows only the selected line's tags in a multi-line config", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+      tag(dir, "orphan-tag");
+
+      const r = await capture(() => runList(dir, { tag: "release" }));
+      expect(r.code).toBe(0);
+      // Should show release line tags
+      expect(r.out).toContain("release/3");
+      // Should NOT show app tags or orphan tags
+      expect(r.out).not.toContain("v1.0.0");
+      expect(r.out).not.toContain("orphan-tag");
+    });
+
+    it("--tag with --json includes line field in single-line output", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "release", pattern: "release/{version}", model: { type: "build" }, initialVersion: "1" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      tag(dir, "release/3");
+
+      const r = await capture(() => runList(dir, { tag: "release", json: true }));
+      expect(r.code).toBe(0);
+      const parsed = JSON.parse(r.out);
+      expect(parsed.line).toBe("release");
+      expect(parsed).toHaveProperty("conforming");
+      expect(parsed).toHaveProperty("latest");
+      expect(parsed.latest).toBe("release/3");
+    });
+
+    it("--all and --tag are mutually exclusive (exits 1)", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runList(dir, { all: true, tag: "app" }));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/mutually exclusive/);
+    });
+  });
+
   describe("list --all", () => {
     it("groups tags per line and surfaces orphans in human-readable output", async () => {
       await writeFile(
@@ -551,6 +619,23 @@ describe("command runners (in-process)", () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runCreate(dir, {}));
       expect(r.out).toMatch(/git push origin v0\.1\.0/);
+    });
+
+    it("create with unknown --tag exits 1 with Available: in stderr", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runCreate(dir, { tag: "ghost" }));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/Available:/);
     });
   });
 });

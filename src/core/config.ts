@@ -59,7 +59,9 @@ export class MissingConfigError extends ConfigError {}
 /** Parse, normalise and validate a raw config. Throws ConfigError on failure. */
 export function parseConfig(raw: unknown): TagsmithConfig {
   const isMulti =
-    typeof raw === "object" && raw !== null && "tags" in (raw as object);
+    typeof raw === "object" &&
+    raw !== null &&
+    Array.isArray((raw as Record<string, unknown>)["tags"]);
 
   if (isMulti) {
     const result = multiConfigSchema.safeParse(raw);

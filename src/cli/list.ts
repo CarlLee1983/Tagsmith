@@ -74,6 +74,11 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
     const allTags = await listTags({ cwd });
     const assignment = assignTagsToLines(allTags, config.lines);
 
+    if (flags.all && flags.tag) {
+      printError("--all and --tag are mutually exclusive.");
+      return 1;
+    }
+
     if (flags.all) {
       if (flags.json) {
         const lines = config.lines.map((line) => {
@@ -124,7 +129,7 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
     const analysis = analyzeTags(tagsForAnalysis, pattern, model);
 
     if (flags.json) {
-      info(JSON.stringify(analysisToJson(analysis), null, 2));
+      info(JSON.stringify({ line: line.name, ...analysisToJson(analysis) }, null, 2));
       return 0;
     }
 

@@ -35,7 +35,7 @@ function emitCheck(results: CheckResult[], json: boolean | undefined): number {
     if (r.ok) {
       success(`${color.cyan(r.raw)} ${color.dim("ok")} ${color.dim(`(${r.line ?? "orphan"})`)}`);
     } else {
-      printError(`${r.raw} (${r.anomaly ?? "no-matching-line"})`);
+      printError(`${r.raw} (${r.anomaly})`);
     }
   }
   return allOk ? 0 : 1;
@@ -76,18 +76,21 @@ export async function runCheck(
     }
 
     // Default cross-line mode: assign each target to its owning line (first match wins).
+    // Compile each line's pattern + model once before iterating over targets.
+    const compiled = config.lines.map((l) => ({
+      line: l,
+      pattern: compilePattern(l.pattern),
+      model: createModel(l.model),
+    }));
     const results: CheckResult[] = targets.map((raw) => {
-      const owner = config.lines.find(
-        (l) => compilePattern(l.pattern).extract(raw) !== null,
-      );
-      if (!owner) {
+      const hit = compiled.find((c) => c.pattern.extract(raw) !== null);
+      if (!hit) {
         return { raw, line: null, ok: false, anomaly: "pattern-mismatch" };
       }
-      const model = createModel(owner.model);
-      const c = classify(raw, compilePattern(owner.pattern), model);
+      const c = classify(raw, hit.pattern, hit.model);
       return {
         raw,
-        line: owner.name,
+        line: hit.line.name,
         ok: c.conforming,
         anomaly: c.anomaly,
       };
