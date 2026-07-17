@@ -96,7 +96,7 @@ reading the final YAML file. The first remote run must be checked after push.
 Run `git diff --check`, verify all internal HTML links resolve, and use a local
 HTTP server to retrieve both `/` and `/en/` successfully.
 
-- [ ] **Step 2: Commit and push the implementation**
+- [x] **Step 2: Commit and push the implementation**
 
 Commit only the site, workflow, and this plan using
 `docs: publish bilingual Tagsmith site`, then push `main` to `origin`.
