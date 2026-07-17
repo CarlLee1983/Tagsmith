@@ -101,7 +101,7 @@ HTTP server to retrieve both `/` and `/en/` successfully.
 Commit only the site, workflow, and this plan using
 `docs: publish bilingual Tagsmith site`, then push `main` to `origin`.
 
-- [ ] **Step 3: Verify production deployment**
+- [x] **Step 3: Verify production deployment**
 
 Inspect the GitHub Actions run, then request both
 `https://carllee1983.github.io/Tagsmith/` and
