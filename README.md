@@ -22,6 +22,8 @@ Tag formats are configurable, including `v{version}` and `release/{version}`.
   tags when no configuration file exists.
 - **Support multiple release lines** — give independent version models and tag
   patterns to application, release, or other tag lines.
+- **Plan monorepo releases** — inspect every line's committed changes, candidate
+  tag, and blockers before choosing which existing create commands to run.
 - **Release safely with a team** — fetch remote tags before a push and use the
   included GitHub Action to enforce the same checks in CI.
 - **Check release readiness** — optionally require the correct branch, a clean
@@ -163,11 +165,14 @@ touch the selected workspace.
 ```bash
 tagsmith next --tag api --require-changes
 tagsmith create --tag api --require-changes --push
+tagsmith plan --all --from-commits
 ```
 
 `workspace` must stay inside the repository and is evaluated against committed
 changes only. It is optional, so existing single-repository configurations are
-unchanged.
+unchanged. `plan --all` reads every configured line: it scopes lines with a
+`workspace` to that package and evaluates an unscoped line against the entire
+repository.
 
 ### Release readiness
 
@@ -220,6 +225,7 @@ non-canonical tags from representing the same version.
 | `tagsmith guide` | Walk through init → list → next → create |
 | `tagsmith list` / `ls` | List tags in semantic order and report anomalies |
 | `tagsmith audit` | Audit tag history plus configured release readiness |
+| `tagsmith plan --all` | Plan read-only releases across every configured tag line |
 | `tagsmith check [tags...]` | Validate supplied tags, or all repository tags with no arguments |
 | `tagsmith next` | Compute the next valid tag without creating it |
 | `tagsmith create` | Create the next or an explicit tag after validation |
@@ -232,6 +238,8 @@ Useful options:
 tagsmith list --all                    # Show every configured line and orphan tags
 tagsmith audit --json                  # Machine-readable complete tag audit
 tagsmith audit --fetch --remote origin # Include freshly fetched remote tags
+tagsmith plan --all --json             # Read every line's release decision
+tagsmith plan --all --from-commits     # Use Conventional Commits for SemVer lines
 tagsmith check --strict --json         # Audit tag shape and duplicate versions
 tagsmith next --fetch --remote origin  # Include tags fetched from a remote
 tagsmith next --from-commits           # Recommend a SemVer bump from commits
@@ -249,6 +257,55 @@ recommends `patch`. For a workspace-scoped line, the recommendation considers
 only commits that touch that workspace. `create` also accepts `--message`, `--set-version`,
 `--push`, `--dry-run`, and `--allow-out-of-order`.
 
+### Planning monorepo releases
+
+`tagsmith plan --all` is a read-only multi-line decision. Every configured
+line is reported in configuration order as `ready`, `skipped`, or `blocked`.
+A ready line supplies a candidate that matches `tagsmith next --tag <name>`;
+unchanged workspaces are skipped, not errors. The plan never creates or pushes
+tags.
+
+| Flag | Meaning |
+| --- | --- |
+| `--all` | Required acknowledgement that every configured line will be inspected |
+| `--json` | Output the versioned plan envelope for CI or scripts |
+| `--fetch` / `--remote <name>` | Fetch tags before planning (default remote: `origin`) |
+| `--from-commits` | Derive SemVer bumps from Conventional Commits; non-SemVer lines are blocked explicitly |
+| `--require-changes` | Require every line to define `workspace`; unchanged lines remain `skipped` |
+
+```jsonc
+// tagsmith plan --all --from-commits --json
+{
+  "schemaVersion": 1,
+  "command": "plan",
+  "ok": true,
+  "data": {
+    "defaultLine": "api",
+    "hasReleases": true,
+    "lines": [
+      {
+        "line": "api",
+        "workspace": "packages/api",
+        "status": "ready",
+        "changed": true,
+        "bump": "minor",
+        "candidate": { "tag": "api/v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false },
+        "recommendation": { "level": "minor", "reasons": [{ "id": "…", "level": "minor", "summary": "feat(api): add search" }] },
+        "commits": [{ "id": "…", "summary": "feat(api): add search" }],
+        "blockers": [],
+        "anomalies": []
+      },
+      { "line": "web", "status": "skipped", "changed": false, "bump": null, "candidate": null }
+    ]
+  },
+  "diagnostics": []
+}
+```
+
+`blocked` lines make the command exit non-zero and include stable diagnostic
+codes such as `ambiguous-assignment`, `workspace-required`, or
+`from-commits-unsupported`; the other lines are still available in the result.
+
 ### Auditing assignment safety
 
 `tagsmith audit` is a read-only repository check. It reports malformed and
@@ -257,7 +314,7 @@ matches more than one line. An ambiguous tag is not silently assigned according
 to configuration order: `next` and `create` refuse to use a line affected by
 that history until it is resolved.
 
-Every `--json` result from `list`, `check`, `next`, and `audit` uses the same
+Every `--json` result from `list`, `check`, `next`, `audit`, and `plan` uses the same
 versioned envelope. Read command-specific fields from `data`, and make
 automation decisions from stable diagnostic `code` values rather than parsing
 human-readable messages:
@@ -296,7 +353,8 @@ existing tag history. `check` reports `matches` for every candidate; a
 matched, so there is no safe unique owner.
 
 The repository is a reusable GitHub Action. It builds Tagsmith from the checked
-out action, fetches tags by default, then runs `audit --json`:
+out action, fetches tags by default, runs `audit --json`, then exposes the
+read-only `plan --all --json` result:
 
 ```yaml
 name: Validate tags
@@ -307,11 +365,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: CarlLee1983/Tagsmith@main # Pin a release tag or commit SHA in production.
+      - id: tagsmith
+        uses: CarlLee1983/Tagsmith@main # Pin a release tag or commit SHA in production.
+        with:
+          plan-from-commits: "true"
+          plan-tag: api
+      - if: steps.tagsmith.outputs.has-releases == 'true'
+        run: echo '${{ steps.tagsmith.outputs.plan }}' | jq .
 ```
 
 Set `with: { working-directory: packages/api, fetch-tags: "false" }` when the
 configuration lives below the repository root or tags are already available.
+The Action's `plan` output is the full JSON envelope; `has-releases` is `true`
+when any line is ready, and `next-tag` is the ready candidate for `plan-tag` or
+the config default line (otherwise an empty string). It does not create tags.
 
 ## Merge policy
 

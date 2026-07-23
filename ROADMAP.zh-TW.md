@@ -119,6 +119,10 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 
 ## 0.7 — Monorepo release planning
 
+> 實作狀態：完成，待發行 `0.7.0`。設計與實作紀錄見
+> [`2026-07-23-monorepo-release-planning-design.md`](docs/history/designs/2026-07-23-monorepo-release-planning-design.md)
+> 與 [`2026-07-23-monorepo-release-planning.md`](docs/history/plans/2026-07-23-monorepo-release-planning.md)。
+
 ### 目標
 
 將現有的 workspace tag line 與 `--require-changes`、`--from-commits` 串成一次

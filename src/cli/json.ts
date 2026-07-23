@@ -2,7 +2,7 @@ import { info } from "./ui.js";
 
 export const JSON_SCHEMA_VERSION = 1 as const;
 
-export type JsonCommand = "list" | "check" | "next" | "audit";
+export type JsonCommand = "list" | "check" | "next" | "audit" | "plan";
 export type JsonDiagnosticSeverity = "error" | "warning";
 
 /** A stable, machine-readable explanation that never requires parsing text. */

@@ -9,6 +9,7 @@ import { runNext } from "../src/cli/next.js";
 import { runCreate } from "../src/cli/create.js";
 import { runCheck } from "../src/cli/check.js";
 import { runAudit } from "../src/cli/audit.js";
+import { runPlan } from "../src/cli/plan.js";
 import { configExists } from "../src/core/config.js";
 
 /** Capture everything written to stdout/stderr during `fn`. */
@@ -453,6 +454,207 @@ describe("command runners (in-process)", () => {
       } finally {
         await rm(outside, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe("plan", () => {
+    it("requires --all so planning every line is always explicit", async () => {
+      await runInit(dir, { yes: true });
+
+      const r = await capture(() => runPlan(dir, { json: true }));
+
+      expect(r.code).toBe(1);
+      expect(jsonOutput(r.out)).toMatchObject({
+        command: "plan",
+        ok: false,
+        data: null,
+        diagnostics: [expect.objectContaining({ code: "command-error" })],
+      });
+    });
+
+    it("plans changed workspaces, skips unchanged lines, and leaves tags untouched", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            {
+              name: "api",
+              workspace: "packages/api",
+              pattern: "api/v{version}",
+              model: { type: "semver" },
+              initialVersion: "0.1.0",
+            },
+            {
+              name: "web",
+              workspace: "packages/web",
+              pattern: "web/v{version}",
+              model: { type: "semver" },
+              initialVersion: "0.1.0",
+            },
+          ],
+          default: "api",
+        }),
+        "utf8",
+      );
+      await mkdir(path.join(dir, "packages", "api"), { recursive: true });
+      await mkdir(path.join(dir, "packages", "web"), { recursive: true });
+      await writeFile(path.join(dir, "packages", "api", "index.ts"), "export {};\n");
+      await writeFile(path.join(dir, "packages", "web", "index.ts"), "export {};\n");
+      execFileSync("git", ["add", "packages"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "chore: add workspaces"], { cwd: dir });
+      tag(dir, "api/v1.0.0");
+      tag(dir, "web/v1.0.0");
+
+      await writeFile(path.join(dir, "packages", "api", "index.ts"), "export const search = true;\n");
+      execFileSync("git", ["add", "packages/api/index.ts"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat(api): add search"], { cwd: dir });
+
+      const r = await capture(() =>
+        runPlan(dir, { all: true, fromCommits: true, json: true }),
+      );
+
+      expect(r.code).toBe(0);
+      const plan = jsonOutput(r.out);
+      expect(plan).toMatchObject({ schemaVersion: 1, command: "plan", ok: true });
+      expect(plan.data).toMatchObject({ defaultLine: "api", hasReleases: true });
+      expect(plan.data.lines).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          line: "api",
+          status: "ready",
+          changed: true,
+          bump: "minor",
+          candidate: expect.objectContaining({ tag: "api/v1.1.0" }),
+          recommendation: expect.objectContaining({ level: "minor" }),
+          commits: [expect.objectContaining({ summary: "feat(api): add search" })],
+        }),
+        expect.objectContaining({
+          line: "web",
+          status: "skipped",
+          changed: false,
+          candidate: null,
+        }),
+      ]));
+      expect(plan.data.lines.map((line: { line: string }) => line.line)).toEqual(["api", "web"]);
+      const next = await capture(() =>
+        runNext(dir, { tag: "api", fromCommits: true, json: true }),
+      );
+      expect(jsonOutput(next.out).data.tag).toBe(
+        plan.data.lines.find((line: { line: string }) => line.line === "api").candidate.tag,
+      );
+      expect(execFileSync("git", ["tag", "--list"], { cwd: dir }).toString().trim().split("\n")).toEqual([
+        "api/v1.0.0",
+        "web/v1.0.0",
+      ]);
+    });
+
+    it("reports per-line blockers while preserving ready results for other lines", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            {
+              name: "api",
+              workspace: "packages/api",
+              pattern: "api/v{version}",
+              model: { type: "semver" },
+              initialVersion: "0.1.0",
+            },
+            {
+              name: "build",
+              workspace: "packages/build",
+              pattern: "build/{version}",
+              model: { type: "build" },
+              initialVersion: "1",
+            },
+          ],
+          default: "api",
+        }),
+        "utf8",
+      );
+      await mkdir(path.join(dir, "packages", "api"), { recursive: true });
+      await mkdir(path.join(dir, "packages", "build"), { recursive: true });
+      await writeFile(path.join(dir, "packages", "api", "index.ts"), "export const api = true;\n");
+      execFileSync("git", ["add", "packages"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat(api): initial API"], { cwd: dir });
+      tag(dir, "api/v0.1.0");
+      await writeFile(path.join(dir, "packages", "api", "index.ts"), "export const api = 'updated';\n");
+      execFileSync("git", ["add", "packages/api/index.ts"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat(api): improve API"], { cwd: dir });
+
+      const r = await capture(() =>
+        runPlan(dir, { all: true, fromCommits: true, json: true }),
+      );
+
+      expect(r.code).toBe(1);
+      const plan = jsonOutput(r.out);
+      expect(plan.data.hasReleases).toBe(true);
+      expect(plan.data.lines).toEqual(expect.arrayContaining([
+        expect.objectContaining({ line: "api", status: "ready", candidate: expect.objectContaining({ tag: "api/v0.2.0" }) }),
+        expect.objectContaining({
+          line: "build",
+          status: "blocked",
+          changed: null,
+          candidate: null,
+          blockers: [expect.objectContaining({ code: "from-commits-unsupported" })],
+        }),
+      ]));
+      expect(plan.diagnostics).toContainEqual(expect.objectContaining({
+        code: "from-commits-unsupported",
+        severity: "error",
+        line: "build",
+      }));
+    });
+
+    it("treats --require-changes without a workspace as a per-line blocker", async () => {
+      await runInit(dir, { yes: true });
+
+      const r = await capture(() =>
+        runPlan(dir, { all: true, requireChanges: true, json: true }),
+      );
+
+      expect(r.code).toBe(1);
+      expect(jsonOutput(r.out).data.lines[0]).toMatchObject({
+        status: "blocked",
+        blockers: [expect.objectContaining({ code: "workspace-required" })],
+      });
+    });
+
+    it("blocks only ambiguous history instead of failing before producing the plan", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "bare", pattern: "{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runPlan(dir, { all: true, json: true }));
+
+      expect(r.code).toBe(1);
+      const plan = jsonOutput(r.out);
+      expect(plan.data.lines).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          line: "app",
+          status: "blocked",
+          candidate: null,
+          blockers: [expect.objectContaining({ code: "ambiguous-assignment" })],
+        }),
+        expect.objectContaining({
+          line: "bare",
+          status: "blocked",
+          candidate: null,
+          blockers: [expect.objectContaining({ code: "ambiguous-assignment" })],
+        }),
+      ]));
+      expect(plan.diagnostics).toContainEqual(expect.objectContaining({
+        code: "ambiguous-assignment",
+        severity: "error",
+      }));
     });
   });
 

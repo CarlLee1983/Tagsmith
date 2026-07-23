@@ -12,7 +12,7 @@
       "description": "Incremented only for incompatible output-contract changes."
     },
     "command": {
-      "enum": ["list", "check", "next", "audit"]
+      "enum": ["list", "check", "next", "audit", "plan"]
     },
     "ok": {
       "type": "boolean",

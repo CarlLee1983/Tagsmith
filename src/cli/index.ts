@@ -8,6 +8,7 @@ import { runCreate } from "./create.js";
 import { runGuide } from "./guide.js";
 import { runCheck } from "./check.js";
 import { runAudit } from "./audit.js";
+import { runPlan } from "./plan.js";
 import { runMergeCheck } from "./merge-check.js";
 import { runHooksInstall, runHooksUninstall } from "./hooks.js";
 import { printError } from "./ui.js";
@@ -38,6 +39,7 @@ Examples:
   $ tagsmith guide                         Step-by-step walkthrough
   $ tagsmith list                          Inspect existing tags
   $ tagsmith audit                         Audit complete tag history
+  $ tagsmith plan --all                    Plan releases across every tag line
   $ tagsmith check v1.2.3                  Validate a tag against the spec
   $ tagsmith next --level minor            Preview the next tag
   $ tagsmith next --tag release            Compute next on a named tag line
@@ -116,6 +118,19 @@ program
   .option("--remote <name>", "remote used by --fetch (default: origin)")
   .action(async (opts) => {
     process.exitCode = await runAudit(process.cwd(), opts);
+  });
+
+program
+  .command("plan")
+  .description("Plan read-only releases across every configured tag line")
+  .requiredOption("--all", "plan every configured tag line")
+  .option("--json", "output versioned JSON")
+  .option("--fetch", "fetch tags from the remote before planning")
+  .option("--remote <name>", "remote used by --fetch (default: origin)")
+  .option("--from-commits", "derive SemVer bumps from Conventional Commits")
+  .option("--require-changes", "require every planned line to declare a workspace")
+  .action(async (opts) => {
+    process.exitCode = await runPlan(process.cwd(), opts);
   });
 
 const createCommand = program

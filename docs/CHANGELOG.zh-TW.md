@@ -7,6 +7,20 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-23
+
+### 新增
+
+- `tagsmith plan --all`：唯讀、依設定宣告順序的 monorepo 發版計畫；每條線明確標示
+  `ready`、`skipped` 或個別 `blocked`。
+- workspace 範圍的已提交變更與 Conventional Commit 依據、候選 tag、穩定 blocker，及
+  versioned plan JSON 的 `hasReleases`。
+- GitHub Action 的完整 plan JSON、是否有可發版 line，以及指定線 next tag outputs。
+
+### 變更
+
+- JSON envelope 新增 `plan` command，仍維持 schema version 1 與既有 diagnostics 合約。
+
 ## [0.6.0] - 2026-07-23
 
 ### 新增
@@ -139,7 +153,8 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0
