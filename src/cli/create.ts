@@ -1,7 +1,11 @@
 import { compilePattern } from "../core/pattern.js";
 import { createModel } from "../core/models/index.js";
 import { planNext, validateExplicit } from "../core/plan.js";
-import { assignTagsToLines, selectLine } from "../core/lines.js";
+import {
+  assignTagsToLines,
+  assertUnambiguousLineHistory,
+  selectLine,
+} from "../core/lines.js";
 import { createTag, ensureRepo, fetchTags, listTags, pushTag } from "../git/git.js";
 import { color, info, printError, success, warn } from "./ui.js";
 import { printNextStepsAfterCreate } from "./guidance.js";
@@ -41,7 +45,9 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
       if (!flags.dryRun) info(`Fetched tags from ${flags.remote ?? "origin"}.`);
     }
     const allTags = await listTags({ cwd });
-    const lineTags = assignTagsToLines(allTags, config.lines).byLine.get(line.name) ?? [];
+    const assignment = assignTagsToLines(allTags, config.lines);
+    assertUnambiguousLineHistory(assignment, line.name);
+    const lineTags = assignment.byLine.get(line.name) ?? [];
 
     let tagName: string;
     if (flags.setVersion !== undefined) {

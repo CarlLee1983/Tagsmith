@@ -209,7 +209,7 @@ describe("git integration", () => {
         runNext(dir, { fetch: true, remote: "upstream", json: true }),
       );
       expect(preview.code).toBe(0);
-      expect(JSON.parse(preview.stdout).tag).toBe("v1.2.4");
+      expect(JSON.parse(preview.stdout).data.tag).toBe("v1.2.4");
 
       const created = await capture(() => runCreate(dir, { remote: "upstream" }));
       expect(created.code).toBe(0);
@@ -322,7 +322,7 @@ describe("git integration", () => {
     // next --json should compute v1.0.1
     const nextResult = await capture(() => runNext(dir, { json: true }));
     expect(nextResult.code).toBe(0);
-    expect(JSON.parse(nextResult.stdout).tag).toBe("v1.0.1");
+    expect(JSON.parse(nextResult.stdout).data.tag).toBe("v1.0.1");
 
     // create should actually create v1.0.1
     const createResult = await capture(() => runCreate(dir, {}));

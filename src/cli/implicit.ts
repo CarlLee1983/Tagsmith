@@ -1,12 +1,14 @@
 import type { ResolvedConfig } from "../core/config.js";
 import { color, info } from "./ui.js";
 
-/** Extra JSON fields when config was inferred rather than loaded from disk. */
-export function implicitConfigJson(resolved: ResolvedConfig): Record<string, string> {
-  if (resolved.source === "file") return {};
+/** Configuration provenance included in every versioned JSON result. */
+export function configMetadata(
+  resolved: ResolvedConfig,
+): { source: ResolvedConfig["source"]; pattern?: string } {
+  if (resolved.source === "file") return { source: "file" };
   const line = resolved.config.lines[0]!;
   return {
-    configSource: resolved.source,
+    source: resolved.source,
     pattern: line.pattern,
   };
 }

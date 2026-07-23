@@ -1,6 +1,6 @@
 {
   "name": "@carllee1983/tagsmith",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Define git tag specs, view tags, and generate the next git tag safely — avoiding ordering or format anomalies.",
   "type": "module",
   "publishConfig": { "access": "public" },
@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "schema.json"
+    "schema.json",
+    "json-output.schema.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

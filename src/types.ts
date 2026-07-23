@@ -81,4 +81,5 @@ export interface ParsedTag {
 export type TagAnomaly =
   | "pattern-mismatch" // does not match the configured pattern
   | "unparseable-version" // matched pattern but version could not be parsed
-  | "duplicate-version"; // another tag resolves to the same version
+  | "duplicate-version" // another tag resolves to the same version
+  | "ambiguous-assignment"; // matches more than one configured tag line

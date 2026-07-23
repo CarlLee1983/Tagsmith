@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { assignTagsToLines, selectLine } from "../src/core/lines.js";
+import {
+  assignTagsToLines,
+  assertUnambiguousLineHistory,
+  AmbiguousTagAssignmentError,
+  selectLine,
+} from "../src/core/lines.js";
 import type { TagLine, TagsmithConfig } from "../src/types.js";
 
 const app: TagLine = {
@@ -29,18 +34,32 @@ describe("assignTagsToLines", () => {
     expect(r.orphans).toEqual(["weird-tag"]);
   });
 
-  it("first declared line wins when patterns overlap", () => {
+  it("reports overlapping patterns as ambiguous instead of selecting the first line", () => {
     const bare: TagLine = { ...app, name: "bare", pattern: "{version}" };
-    // "v1.0.0" 同時被 app(v{version}) 與 bare({version}) 命中 → app 先宣告者勝
+    // "v1.0.0" 同時被 app(v{version}) 與 bare({version}) 命中。
     const r = assignTagsToLines(["v1.0.0"], [app, bare]);
-    expect(r.byLine.get("app")).toEqual(["v1.0.0"]);
+    expect(r.byLine.get("app")).toEqual([]);
     expect(r.byLine.get("bare")).toEqual([]);
+    expect(r.ambiguous).toEqual([
+      { tag: "v1.0.0", lines: ["app", "bare"] },
+    ]);
   });
 
   it("always returns an entry (possibly empty) for every line", () => {
     const r = assignTagsToLines([], [app, release]);
     expect(r.byLine.get("app")).toEqual([]);
     expect(r.byLine.get("release")).toEqual([]);
+    expect(r.ambiguous).toEqual([]);
+  });
+
+  it("rejects release decisions only for a line affected by an ambiguity", () => {
+    const bare: TagLine = { ...app, name: "bare", pattern: "{version}" };
+    const assignment = assignTagsToLines(["v1.0.0"], [app, bare, release]);
+
+    expect(() => assertUnambiguousLineHistory(assignment, "app"))
+      .toThrow(AmbiguousTagAssignmentError);
+    expect(() => assertUnambiguousLineHistory(assignment, "release"))
+      .not.toThrow();
   });
 });
 

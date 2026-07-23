@@ -8,6 +8,7 @@ import { runList } from "../src/cli/list.js";
 import { runNext } from "../src/cli/next.js";
 import { runCreate } from "../src/cli/create.js";
 import { runCheck } from "../src/cli/check.js";
+import { runAudit } from "../src/cli/audit.js";
 import { configExists } from "../src/core/config.js";
 
 /** Capture everything written to stdout/stderr during `fn`. */
@@ -49,6 +50,16 @@ function gitInit(dir: string): void {
 
 function tag(dir: string, name: string): void {
   execFileSync("git", ["tag", name], { cwd: dir });
+}
+
+function jsonOutput(out: string): {
+  schemaVersion: number;
+  command: string;
+  ok: boolean;
+  data: any;
+  diagnostics: unknown[];
+} {
+  return JSON.parse(out);
 }
 
 describe("command runners (in-process)", () => {
@@ -125,7 +136,7 @@ describe("command runners (in-process)", () => {
       const r = await capture(() => runList(dir, {}));
       expect(r.out).toContain("v1.2.0");
       expect(r.out).toMatch(/latest/);
-      expect(r.out).toMatch(/non-conforming/);
+      expect(r.out).toMatch(/orphan/i);
       expect(r.out).toContain("junk");
     });
 
@@ -133,7 +144,9 @@ describe("command runners (in-process)", () => {
       await runInit(dir, { yes: true });
       tag(dir, "v2.0.0");
       const r = await capture(() => runList(dir, { json: true }));
-      expect(JSON.parse(r.out).latest).toBe("v2.0.0");
+      const json = jsonOutput(r.out);
+      expect(json).toMatchObject({ schemaVersion: 1, command: "list", ok: true });
+      expect(json.data.latest).toBe("v2.0.0");
     });
 
     it("fails without a config", async () => {
@@ -177,13 +190,13 @@ describe("command runners (in-process)", () => {
       );
 
       expect(r.code).toBe(1);
-      const result = JSON.parse(r.out).results[0];
+      const result = jsonOutput(r.out).data.results[0];
       expect(result).toMatchObject({
         raw: "v1.0.0",
         ok: false,
         anomaly: "duplicate-version",
       });
-      expect(JSON.parse(r.out).strict).toBe(true);
+      expect(jsonOutput(r.out).data.strict).toBe(true);
     });
 
     it("validates explicit tags without a config file", async () => {
@@ -217,9 +230,9 @@ describe("command runners (in-process)", () => {
       await runInit(dir, { yes: true });
       tag(dir, "junk");
       const r = await capture(() => runCheck(dir, [], { json: true }));
-      const parsed = JSON.parse(r.out);
-      expect(parsed).toHaveProperty("results");
-      const junkResult = parsed.results.find((res: { raw: string }) => res.raw === "junk");
+      const parsed = jsonOutput(r.out);
+      expect(parsed).toMatchObject({ schemaVersion: 1, command: "check", ok: false });
+      const junkResult = parsed.data.results.find((res: { raw: string }) => res.raw === "junk");
       expect(junkResult.ok).toBe(false);
       expect(junkResult.line).toBeNull();
     });
@@ -229,16 +242,16 @@ describe("command runners (in-process)", () => {
       // under the new cross-line check semantics.
       await runInit(dir, { yes: true });
       const r = await capture(() => runCheck(dir, ["v1.2.3"], { json: true }));
-      const parsed = JSON.parse(r.out);
-      expect(parsed).toHaveProperty("results");
-      expect(parsed.results[0]).toMatchObject({ raw: "v1.2.3", ok: true, anomaly: null, line: "default" });
+      const parsed = jsonOutput(r.out);
+      expect(parsed).toMatchObject({ schemaVersion: 1, command: "check", ok: true });
+      expect(parsed.data.results[0]).toMatchObject({ raw: "v1.2.3", ok: true, anomaly: null, line: "default" });
     });
 
     it("explicit mode emits JSON for non-conforming tag", async () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runCheck(dir, ["junk"], { json: true }));
-      const parsed = JSON.parse(r.out);
-      expect(parsed.results[0]).toMatchObject({ raw: "junk", ok: false, anomaly: "pattern-mismatch", line: null });
+      const parsed = jsonOutput(r.out);
+      expect(parsed.data.results[0]).toMatchObject({ raw: "junk", ok: false, anomaly: "pattern-mismatch", line: null });
     });
 
     it("explicit --json output is pure JSON (no decorated lines)", async () => {
@@ -263,10 +276,10 @@ describe("command runners (in-process)", () => {
       const r = await capture(() =>
         runCheck(dir, ["v1.2.3", "release/9", "junk"], { json: true }),
       );
-      const json = JSON.parse(r.out);
-      expect(json).toHaveProperty("results");
+      const json = jsonOutput(r.out);
+      expect(json.data).toHaveProperty("results");
       const byRaw = Object.fromEntries(
-        json.results.map((res: { raw: string; line: string | null }) => [res.raw, res.line]),
+        json.data.results.map((res: { raw: string; line: string | null }) => [res.raw, res.line]),
       );
       expect(byRaw["v1.2.3"]).toBe("app");
       expect(byRaw["release/9"]).toBe("release");
@@ -288,9 +301,9 @@ describe("command runners (in-process)", () => {
       const r = await capture(() =>
         runCheck(dir, ["v1.2.3", "junk"], { json: true }),
       );
-      const json = JSON.parse(r.out);
+      const json = jsonOutput(r.out);
       expect(r.code).toBe(1);
-      const junkResult = json.results.find((res: { raw: string }) => res.raw === "junk");
+      const junkResult = json.data.results.find((res: { raw: string }) => res.raw === "junk");
       expect(junkResult.ok).toBe(false);
     });
 
@@ -310,8 +323,8 @@ describe("command runners (in-process)", () => {
       const r = await capture(() =>
         runCheck(dir, ["release/9"], { tag: "app", json: true }),
       );
-      const json = JSON.parse(r.out);
-      expect(json.results[0].ok).toBe(false);
+      const json = jsonOutput(r.out);
+      expect(json.data.results[0].ok).toBe(false);
       expect(r.code).toBe(1);
     });
 
@@ -330,10 +343,92 @@ describe("command runners (in-process)", () => {
       const r = await capture(() =>
         runCheck(dir, ["v1.2.3"], { tag: "app", json: true }),
       );
-      const json = JSON.parse(r.out);
-      expect(json.results[0].ok).toBe(true);
-      expect(json.results[0].line).toBe("app");
+      const json = jsonOutput(r.out);
+      expect(json.data.results[0].ok).toBe(true);
+      expect(json.data.results[0].line).toBe("app");
       expect(r.code).toBe(0);
+    });
+
+    it("keeps detecting an ambiguous assignment even when --tag selects one matching line", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "bare", pattern: "{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      const r = await capture(() => runCheck(dir, ["v1.2.3"], { tag: "app", json: true }));
+
+      expect(r.code).toBe(1);
+      expect(jsonOutput(r.out).data.results[0]).toMatchObject({
+        line: null,
+        matches: ["app", "bare"],
+        anomaly: "ambiguous-assignment",
+      });
+    });
+  });
+
+  describe("audit", () => {
+    it("renders a human-readable summary while preserving orphan tags as warnings", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "legacy-tag");
+
+      const r = await capture(() => runAudit(dir, {}));
+
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/default: 0 conforming tag\(s\); latest: none/);
+      expect(r.out).toMatch(/\[orphan-tag\]/);
+      expect(r.out).toMatch(/Audit passed with 1 warning/);
+    });
+
+    it("reports complete assignment safety in a versioned JSON envelope", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "bare", pattern: "{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runAudit(dir, { json: true }));
+      const json = jsonOutput(r.out);
+
+      expect(r.code).toBe(1);
+      expect(json).toMatchObject({ schemaVersion: 1, command: "audit", ok: false });
+      expect(json.data).toMatchObject({
+        config: { source: "file" },
+        ambiguous: [{ tag: "v1.0.0", lines: ["app", "bare"] }],
+      });
+      expect(json.diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "ambiguous-assignment", severity: "error" }),
+      ]));
+    });
+
+    it("keeps JSON output parseable when auditing outside a repository", async () => {
+      const outside = await mkdtemp(path.join(tmpdir(), "tagsmith-no-repo-"));
+      try {
+        const r = await capture(() => runAudit(outside, { json: true }));
+        expect(r.code).toBe(1);
+        expect(r.err).toBe("");
+        expect(jsonOutput(r.out)).toMatchObject({
+          schemaVersion: 1,
+          command: "audit",
+          ok: false,
+          data: null,
+          diagnostics: [expect.objectContaining({ code: "command-error", severity: "error" })],
+        });
+      } finally {
+        await rm(outside, { recursive: true, force: true });
+      }
     });
   });
 
@@ -349,7 +444,7 @@ describe("command runners (in-process)", () => {
       await runInit(dir, { yes: true });
       tag(dir, "v1.2.0");
       const r = await capture(() => runNext(dir, { level: "minor", json: true }));
-      expect(JSON.parse(r.out).tag).toBe("v1.3.0");
+      expect(jsonOutput(r.out).data.tag).toBe("v1.3.0");
     });
 
     it("derives a semver bump from Conventional Commits since the latest tag", async () => {
@@ -366,9 +461,14 @@ describe("command runners (in-process)", () => {
       );
 
       expect(r.code).toBe(0);
-      expect(JSON.parse(r.out)).toMatchObject({
+      expect(jsonOutput(r.out)).toMatchObject({
+        schemaVersion: 1,
+        command: "next",
+        ok: true,
+        data: {
         tag: "v1.1.0",
         recommendation: { level: "minor" },
+        },
       });
     });
 
@@ -433,9 +533,9 @@ describe("command runners (in-process)", () => {
 
       const r = await capture(() => runNext(dir, { tag: "release", json: true }));
       expect(r.code).toBe(0);
-      const json = JSON.parse(r.out);
-      expect(json.line).toBe("release");
-      expect(json.tag).toBe("release/8");
+      const json = jsonOutput(r.out);
+      expect(json.data.line).toBe("release");
+      expect(json.data.tag).toBe("release/8");
     });
 
     it("only proposes a workspace release when that workspace changed", async () => {
@@ -495,7 +595,7 @@ describe("command runners (in-process)", () => {
         }),
       );
       expect(scopedRecommendation.code).toBe(0);
-      expect(JSON.parse(scopedRecommendation.out)).toMatchObject({
+      expect(jsonOutput(scopedRecommendation.out).data).toMatchObject({
         tag: "api/v1.0.1",
         recommendation: {
           level: "patch",
@@ -506,7 +606,7 @@ describe("command runners (in-process)", () => {
         runNext(dir, { tag: "api", requireChanges: true, json: true }),
       );
       expect(allowed.code).toBe(0);
-      expect(JSON.parse(allowed.out).tag).toBe("api/v1.0.1");
+      expect(jsonOutput(allowed.out).data.tag).toBe("api/v1.0.1");
 
       const created = await capture(() =>
         runCreate(dir, { tag: "api", requireChanges: true }),
@@ -532,6 +632,31 @@ describe("command runners (in-process)", () => {
       const r = await capture(() => runNext(dir, { tag: "ghost" }));
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/Available:/);
+    });
+
+    it("refuses to plan a line whose history contains an ambiguous tag", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "bare", pattern: "{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runNext(dir, { json: true }));
+      expect(r.code).toBe(1);
+      expect(jsonOutput(r.out)).toMatchObject({
+        command: "next",
+        ok: false,
+        data: null,
+        diagnostics: [expect.objectContaining({ code: "command-error" })],
+      });
+      expect(jsonOutput(r.out).diagnostics[0]).toMatchObject({ message: expect.stringMatching(/tagsmith audit/) });
     });
   });
 
@@ -578,11 +703,12 @@ describe("command runners (in-process)", () => {
 
       const r = await capture(() => runList(dir, { tag: "release", json: true }));
       expect(r.code).toBe(0);
-      const parsed = JSON.parse(r.out);
-      expect(parsed.line).toBe("release");
-      expect(parsed).toHaveProperty("conforming");
-      expect(parsed).toHaveProperty("latest");
-      expect(parsed.latest).toBe("release/3");
+      const parsed = jsonOutput(r.out);
+      expect(parsed).toMatchObject({ schemaVersion: 1, command: "list", ok: true });
+      expect(parsed.data.line).toBe("release");
+      expect(parsed.data).toHaveProperty("conforming");
+      expect(parsed.data).toHaveProperty("latest");
+      expect(parsed.data.latest).toBe("release/3");
     });
 
     it("--all and --tag are mutually exclusive (exits 1)", async () => {
@@ -648,20 +774,21 @@ describe("command runners (in-process)", () => {
 
       const r = await capture(() => runList(dir, { all: true, json: true }));
       expect(r.code).toBe(0);
-      const parsed = JSON.parse(r.out);
+      const parsed = jsonOutput(r.out);
       // top-level keys
-      expect(parsed).toHaveProperty("lines");
-      expect(parsed).toHaveProperty("orphans");
+      expect(parsed).toMatchObject({ schemaVersion: 1, command: "list", ok: true });
+      expect(parsed.data).toHaveProperty("lines");
+      expect(parsed.data).toHaveProperty("orphans");
       // lines array: one entry per tag line
-      expect(parsed.lines).toHaveLength(2);
-      const appEntry = parsed.lines.find((l: { line: string }) => l.line === "app");
-      const releaseEntry = parsed.lines.find((l: { line: string }) => l.line === "release");
+      expect(parsed.data.lines).toHaveLength(2);
+      const appEntry = parsed.data.lines.find((l: { line: string }) => l.line === "app");
+      const releaseEntry = parsed.data.lines.find((l: { line: string }) => l.line === "release");
       expect(appEntry).toBeDefined();
       expect(releaseEntry).toBeDefined();
       expect(appEntry.conforming.map((t: { tag: string }) => t.tag)).toContain("v1.0.0");
       expect(releaseEntry.conforming.map((t: { tag: string }) => t.tag)).toContain("release/3");
       // orphans array
-      expect(parsed.orphans).toContain("legacy-tag");
+      expect(parsed.data.orphans).toContain("legacy-tag");
     });
 
     it("list --all with no orphans omits orphans section in human output", async () => {
@@ -782,6 +909,26 @@ describe("command runners (in-process)", () => {
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/Available:/);
     });
+
+    it("refuses to create from a line whose history contains an ambiguous tag", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "bare", pattern: "{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runCreate(dir, {}));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/ambiguous tag assignment/);
+      expect(execFileSync("git", ["tag", "-l"], { cwd: dir, encoding: "utf8" })).toBe("v1.0.0\n");
+    });
   });
 
   describe("zero-config (implicit semver)", () => {
@@ -789,23 +936,23 @@ describe("command runners (in-process)", () => {
       tag(dir, "v0.1.0");
       const r = await capture(() => runNext(dir, { json: true }));
       expect(r.code).toBe(0);
-      const json = JSON.parse(r.out);
-      expect(json.tag).toBe("v0.1.1");
-      expect(json.configSource).toBe("inferred");
-      expect(json.pattern).toBe("v{version}");
+      const json = jsonOutput(r.out);
+      expect(json.data.tag).toBe("v0.1.1");
+      expect(json.data.config.source).toBe("inferred");
+      expect(json.data.config.pattern).toBe("v{version}");
     });
 
     it("next bumps minor when requested", async () => {
       tag(dir, "v0.1.0");
       const r = await capture(() => runNext(dir, { level: "minor", json: true }));
-      expect(JSON.parse(r.out).tag).toBe("v0.2.0");
+      expect(jsonOutput(r.out).data.tag).toBe("v0.2.0");
     });
 
     it("infers bare semver pattern from existing tags", async () => {
       tag(dir, "0.1.0");
       const r = await capture(() => runNext(dir, { json: true }));
-      expect(JSON.parse(r.out).pattern).toBe("{version}");
-      expect(JSON.parse(r.out).tag).toBe("0.1.1");
+      expect(jsonOutput(r.out).data.config.pattern).toBe("{version}");
+      expect(jsonOutput(r.out).data.tag).toBe("0.1.1");
     });
 
     it("create rejects a duplicate tag without config", async () => {
@@ -820,15 +967,15 @@ describe("command runners (in-process)", () => {
     it("check accepts bare semver when inferred from the argument", async () => {
       const r = await capture(() => runCheck(dir, ["0.1.0"], { json: true }));
       expect(r.code).toBe(0);
-      expect(JSON.parse(r.out).pattern).toBe("{version}");
+      expect(jsonOutput(r.out).data.config.pattern).toBe("{version}");
     });
 
     it("prefers an on-disk config over inference", async () => {
       tag(dir, "0.1.0");
       await runInit(dir, { yes: true, pattern: "v{version}" });
       const r = await capture(() => runNext(dir, { json: true }));
-      expect(JSON.parse(r.out).tag).toBe("v0.1.0");
-      expect(JSON.parse(r.out).configSource).toBeUndefined();
+      expect(jsonOutput(r.out).data.tag).toBe("v0.1.0");
+      expect(jsonOutput(r.out).data.config).toEqual({ source: "file" });
     });
 
     it("lists orphan tags that do not match the inferred pattern", async () => {

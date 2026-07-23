@@ -7,6 +7,7 @@ import { runNext } from "./next.js";
 import { runCreate } from "./create.js";
 import { runGuide } from "./guide.js";
 import { runCheck } from "./check.js";
+import { runAudit } from "./audit.js";
 import { runMergeCheck } from "./merge-check.js";
 import { runHooksInstall, runHooksUninstall } from "./hooks.js";
 import { printError } from "./ui.js";
@@ -36,6 +37,7 @@ Examples:
   $ tagsmith init                          Define the tag spec (interactive)
   $ tagsmith guide                         Step-by-step walkthrough
   $ tagsmith list                          Inspect existing tags
+  $ tagsmith audit                         Audit complete tag history
   $ tagsmith check v1.2.3                  Validate a tag against the spec
   $ tagsmith next --level minor            Preview the next tag
   $ tagsmith next --tag release            Compute next on a named tag line
@@ -104,6 +106,14 @@ program
   .option("-t, --tag <name>", "validate only against the named tag line")
   .action(async (tags: string[], opts) => {
     process.exitCode = await runCheck(process.cwd(), tags, opts);
+  });
+
+program
+  .command("audit")
+  .description("Audit all repository tags and tag-line assignment safety")
+  .option("--json", "output versioned JSON")
+  .action(async (opts) => {
+    process.exitCode = await runAudit(process.cwd(), opts);
   });
 
 const createCommand = program

@@ -1,11 +1,15 @@
 import { classify } from "./analyze.js";
 import { createModel } from "./models/index.js";
 import { compilePattern } from "./pattern.js";
+import { matchingLines } from "./lines.js";
 import type { TagAnomaly, TagLine, VersionModel } from "../types.js";
 
 export interface CheckResult {
   raw: string;
+  /** The sole owning line, or null when no unique owner exists. */
   line: string | null;
+  /** Every configured line whose pattern matched this tag. */
+  matches: string[];
   ok: boolean;
   anomaly: TagAnomaly | null;
 }
@@ -18,6 +22,8 @@ export interface CheckOptions {
   strict?: boolean;
   /** Existing repository tags used as history for strict candidate checks. */
   existingTags?: readonly string[];
+  /** Require candidates to belong to this line while still detecting overlaps. */
+  selectedLine?: string;
 }
 
 interface CompiledLine {
@@ -58,7 +64,7 @@ export function checkTags(
   }
 
   return candidates.map((raw) => {
-    const checked = classifyTag(raw, compiled);
+    const checked = classifyTag(raw, compiled, opts.selectedLine);
     if (
       !opts.strict ||
       !checked.ok ||
@@ -71,11 +77,12 @@ export function checkTags(
 
     const key = versionKey(checked.line, checked.model, checked.version);
     if (seenVersions.has(key)) {
-      return {
-        raw: checked.raw,
-        line: checked.line,
-        ok: false,
-        anomaly: "duplicate-version",
+    return {
+      raw: checked.raw,
+      line: checked.line,
+      matches: checked.matches,
+      ok: false,
+      anomaly: "duplicate-version",
       };
     }
     seenVersions.add(key);
@@ -83,12 +90,18 @@ export function checkTags(
   });
 }
 
-function classifyTag(raw: string, lines: readonly CompiledLine[]): ClassifiedCheck {
-  const hit = lines.find((candidate) => candidate.pattern.extract(raw) !== null);
-  if (!hit) {
+function classifyTag(
+  raw: string,
+  lines: readonly CompiledLine[],
+  selectedLine?: string,
+): ClassifiedCheck {
+  const matchNames = matchingLines(raw, lines.map((candidate) => candidate.line))
+    .map((line) => line.name);
+  if (matchNames.length === 0) {
     return {
       raw,
       line: null,
+      matches: [],
       ok: false,
       anomaly: "pattern-mismatch",
       version: null,
@@ -96,15 +109,31 @@ function classifyTag(raw: string, lines: readonly CompiledLine[]): ClassifiedChe
     };
   }
 
+  if (matchNames.length > 1) {
+    return {
+      raw,
+      line: null,
+      matches: matchNames,
+      ok: false,
+      anomaly: "ambiguous-assignment",
+      version: null,
+      model: null,
+    };
+  }
+
+  const hit = lines.find((candidate) => candidate.line.name === matchNames[0])!;
+
   const classified = classify(raw, hit.pattern, hit.model);
+  const belongsToSelectedLine = selectedLine === undefined || hit.line.name === selectedLine;
   return {
     raw,
     // A matching pattern identifies the owning line even when its version is
     // malformed. This keeps CI output actionable: `null` now truly means no
-    // configured line matched the tag at all.
+    // unique configured line owns the tag.
     line: hit.line.name,
-    ok: classified.conforming,
-    anomaly: classified.anomaly,
+    matches: matchNames,
+    ok: belongsToSelectedLine && classified.conforming,
+    anomaly: belongsToSelectedLine ? classified.anomaly : "pattern-mismatch",
     version: classified.version,
     model: hit.model,
   };
@@ -114,6 +143,7 @@ function toResult(checked: ClassifiedCheck): CheckResult {
   return {
     raw: checked.raw,
     line: checked.line,
+    matches: checked.matches,
     ok: checked.ok,
     anomaly: checked.anomaly,
   };

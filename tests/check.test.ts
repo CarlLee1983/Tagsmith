@@ -13,7 +13,13 @@ const line: TagLine = {
 describe("checkTags", () => {
   it("classifies a tag against its matching line", () => {
     expect(checkTags(["v1.2.3"], [line])).toEqual([
-      { raw: "v1.2.3", line: "app", ok: true, anomaly: null },
+      {
+        raw: "v1.2.3",
+        line: "app",
+        matches: ["app"],
+        ok: true,
+        anomaly: null,
+      },
     ]);
   });
 
@@ -22,6 +28,7 @@ describe("checkTags", () => {
       {
         raw: "vnot-a-version",
         line: "app",
+        matches: ["app"],
         ok: false,
         anomaly: "unparseable-version",
       },
@@ -38,6 +45,7 @@ describe("checkTags", () => {
       {
         raw: "v1.2.3",
         line: "app",
+        matches: ["app"],
         ok: false,
         anomaly: "duplicate-version",
       },
@@ -49,10 +57,24 @@ describe("checkTags", () => {
       strict: true,
     });
 
-    expect(results[0]).toMatchObject({ ok: true, anomaly: null });
+    expect(results[0]).toMatchObject({ ok: true, anomaly: null, matches: ["app"] });
     expect(results[1]).toMatchObject({
       ok: false,
       anomaly: "duplicate-version",
     });
+  });
+
+  it("rejects a tag that matches multiple configured lines", () => {
+    const bare: TagLine = { ...line, name: "bare", pattern: "{version}" };
+
+    expect(checkTags(["v1.2.3"], [line, bare])).toEqual([
+      {
+        raw: "v1.2.3",
+        line: null,
+        matches: ["app", "bare"],
+        ok: false,
+        anomaly: "ambiguous-assignment",
+      },
+    ]);
   });
 });

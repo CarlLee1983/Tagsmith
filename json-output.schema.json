@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/CarlLee1983/Tagsmith/json-output.schema.json",
+  "title": "Tagsmith JSON command output",
+  "description": "Versioned envelope emitted by Tagsmith read-only commands with --json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "command", "ok", "data", "diagnostics"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Incremented only for incompatible output-contract changes."
+    },
+    "command": {
+      "enum": ["list", "check", "next", "audit"]
+    },
+    "ok": {
+      "type": "boolean",
+      "description": "False when diagnostics contains error severity."
+    },
+    "data": {
+      "description": "Command-specific result data, or null when the command could not complete."
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/diagnostic" }
+    }
+  },
+  "definitions": {
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": { "type": "string" },
+        "severity": { "enum": ["error", "warning"] },
+        "message": { "type": "string" },
+        "tag": { "type": "string" },
+        "line": { "type": "string" },
+        "lines": { "type": "array", "items": { "type": "string" } },
+        "matches": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

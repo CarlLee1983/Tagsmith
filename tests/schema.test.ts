@@ -31,4 +31,17 @@ describe("JSON schema", () => {
       expect(parentSegment.test("packages/api")).toBe(false);
     }
   });
+
+  it("publishes the versioned JSON command envelope contract", async () => {
+    const schema = JSON.parse(
+      await readFile(path.join(root, "json-output.schema.json"), "utf8"),
+    );
+
+    expect(schema.required).toEqual([
+      "schemaVersion", "command", "ok", "data", "diagnostics",
+    ]);
+    expect(schema.properties.schemaVersion.const).toBe(1);
+    expect(schema.properties.command.enum).toEqual(["list", "check", "next", "audit"]);
+    expect(schema.definitions.diagnostic.required).toEqual(["code", "severity", "message"]);
+  });
 });

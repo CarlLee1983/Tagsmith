@@ -57,14 +57,14 @@ describe("tagsmith CLI (built binary)", () => {
     expect(r.code).toBe(0);
     const ls = run(dir, ["list", "--json"]);
     expect(ls.code).toBe(0);
-    expect(JSON.parse(ls.stdout).latest).toBeNull();
+    expect(JSON.parse(ls.stdout).data.latest).toBeNull();
   });
 
   it("full lifecycle: init → next → create → list", () => {
     run(dir, ["init", "--yes", "--model", "semver"]);
 
     const next1 = run(dir, ["next", "--json"]);
-    expect(JSON.parse(next1.stdout).tag).toBe("v0.1.0");
+    expect(JSON.parse(next1.stdout).data.tag).toBe("v0.1.0");
 
     const create1 = run(dir, ["create"]);
     expect(create1.code).toBe(0);
@@ -75,7 +75,7 @@ describe("tagsmith CLI (built binary)", () => {
     expect(create2.stdout).toContain("v0.2.0");
 
     const list = run(dir, ["list", "--json"]);
-    const parsed = JSON.parse(list.stdout);
+    const parsed = JSON.parse(list.stdout).data;
     expect(parsed.latest).toBe("v0.2.0");
     expect(parsed.conforming.map((t: { tag: string }) => t.tag)).toEqual([
       "v0.2.0",
@@ -109,19 +109,44 @@ describe("tagsmith CLI (built binary)", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(/dry-run/);
     const list = run(dir, ["list", "--json"]);
-    expect(JSON.parse(list.stdout).latest).toBeNull();
+    expect(JSON.parse(list.stdout).data.latest).toBeNull();
   });
 
-  it("list flags non-conforming tags", () => {
+  it("list reports tags outside the configured line as orphan diagnostics", () => {
     run(dir, ["init", "--yes"]);
     execFileSync("git", ["tag", "random-thing"], { cwd: dir });
     execFileSync("git", ["tag", "v1.0.0"], { cwd: dir });
     const r = run(dir, ["list", "--json"]);
     const parsed = JSON.parse(r.stdout);
-    expect(parsed.anomalies).toContainEqual({
+    expect(parsed.data.orphans).toContain("random-thing");
+    expect(parsed.diagnostics).toContainEqual(expect.objectContaining({
+      code: "orphan-tag",
+      severity: "warning",
       tag: "random-thing",
-      reason: "pattern-mismatch",
-    });
+    }));
+  });
+
+  it("runs the complete audit through the built binary", () => {
+    writeFileSync(
+      path.join(dir, ".tagsmith.json"),
+      JSON.stringify({
+        tags: [
+          { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+          { name: "bare", pattern: "{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+        ],
+        default: "app",
+      }),
+    );
+    execFileSync("git", ["tag", "v1.0.0"], { cwd: dir });
+
+    const r = run(dir, ["audit", "--json"]);
+    const json = JSON.parse(r.stdout);
+
+    expect(r.code).toBe(1);
+    expect(json).toMatchObject({ schemaVersion: 1, command: "audit", ok: false });
+    expect(json.data.ambiguous).toEqual([
+      { tag: "v1.0.0", lines: ["app", "bare"] },
+    ]);
   });
 
   it("next works without a config using implicit defaults", () => {
@@ -140,8 +165,13 @@ describe("tagsmith CLI (built binary)", () => {
     const r = run(dir, ["next", "--from-commits", "--json"]);
     expect(r.code).toBe(0);
     expect(JSON.parse(r.stdout)).toMatchObject({
-      tag: "v1.1.0",
-      recommendation: { level: "minor" },
+      schemaVersion: 1,
+      command: "next",
+      ok: true,
+      data: {
+        tag: "v1.1.0",
+        recommendation: { level: "minor" },
+      },
     });
   });
 

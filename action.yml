@@ -1,5 +1,5 @@
 name: Tagsmith
-description: Validate repository tags against a Tagsmith specification.
+description: Audit repository tags and tag-line assignment safety against a Tagsmith specification.
 author: Carl Lee
 branding:
   icon: tag
@@ -35,7 +35,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: git fetch --tags origin
-    - name: Validate tags
+    - name: Audit tags
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: node "$GITHUB_ACTION_PATH/dist/cli/index.js" check --json --strict
+      run: node "$GITHUB_ACTION_PATH/dist/cli/index.js" audit --json

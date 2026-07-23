@@ -1,12 +1,11 @@
-import { compilePattern } from "../core/pattern.js";
-import { createModel } from "../core/models/index.js";
-import { analyzeTags } from "../core/analyze.js";
-import type { Analysis } from "../core/analyze.js";
-import { assignTagsToLines, selectLine } from "../core/lines.js";
+import type { AuditDiagnostic, AuditLineReport, AuditReport } from "../core/audit.js";
+import { auditTags } from "../core/audit.js";
+import { selectLine } from "../core/lines.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import { color, info, printError, warn } from "./ui.js";
 import { resolveConfig } from "./resolve-config.js";
-import { implicitConfigJson, printImplicitConfigNotice } from "./implicit.js";
+import { configMetadata, printImplicitConfigNotice } from "./implicit.js";
+import { emitJson, emitJsonError } from "./json.js";
 
 export interface ListFlags {
   json?: boolean;
@@ -14,144 +13,129 @@ export interface ListFlags {
   all?: boolean;
 }
 
-/** Render the conforming + anomaly listing for an analysis (human-readable). */
-function printAnalysisBody(analysis: Analysis): void {
+/** Render one audit line in the familiar tag-list format. */
+function printAnalysisBody(line: AuditLineReport): void {
   info(color.bold("Conforming tags (newest first):"));
-  if (analysis.conforming.length === 0) {
-    info("  (none)");
-  }
-  analysis.conforming.forEach((t, i) => {
-    const marker = i === 0 ? color.green(" ← latest") : "";
-    info(`  ${color.cyan(t.raw)}${marker}`);
+  if (line.conforming.length === 0) info("  (none)");
+  line.conforming.forEach((tag, index) => {
+    const marker = index === 0 ? color.green(" ← latest") : "";
+    info(`  ${color.cyan(tag.tag)}${marker}`);
   });
 
-  if (analysis.anomalies.length > 0) {
+  if (line.anomalies.length > 0) {
     info("");
-    warn(`${analysis.anomalies.length} non-conforming tag(s):`);
-    for (const t of analysis.anomalies) {
-      info(`  ${color.yellow(t.raw)} ${color.dim(`(${t.anomaly})`)}`);
+    warn(`${line.anomalies.length} non-conforming tag(s):`);
+    for (const tag of line.anomalies) {
+      info(`  ${color.yellow(tag.tag)} ${color.dim(`(${tag.reason})`)}`);
     }
   }
 }
 
-/** Serialise an analysis to the shared `--json` shape. */
-function analysisToJson(analysis: Analysis) {
-  return {
-    conforming: analysis.conforming.map((t) => ({
-      tag: t.raw,
-      version: t.versionString,
-    })),
-    anomalies: analysis.anomalies.map((t) => ({
-      tag: t.raw,
-      reason: t.anomaly,
-    })),
-    latest: analysis.latest?.raw ?? null,
-  };
-}
-
-/** Print the analysis for a single named line (human-readable, with header). */
-function printLineSection(lineName: string, analysis: Analysis): void {
-  info(color.bold(`\n── Line: ${lineName} ──`));
-  if (analysis.conforming.length === 0 && analysis.anomalies.length === 0) {
+function printLineSection(line: AuditLineReport): void {
+  info(color.bold(`\n── Line: ${line.line} ──`));
+  if (line.conforming.length === 0 && line.anomalies.length === 0) {
     info("  (no tags)");
     return;
   }
-  printAnalysisBody(analysis);
+  printAnalysisBody(line);
 }
 
-/** Print the orphan tags section (human-readable). */
 function printOrphans(orphans: readonly string[]): void {
   info(color.bold("\n── Unassigned / orphan tags ──"));
-  for (const t of orphans) {
-    info(`  ${color.yellow(t)}`);
+  for (const tag of orphans) info(`  ${color.yellow(tag)}`);
+}
+
+function printAmbiguous(report: AuditReport, selectedLine?: string): void {
+  const ambiguous = selectedLine === undefined
+    ? report.ambiguous
+    : report.ambiguous.filter((item) => item.lines.includes(selectedLine));
+  if (ambiguous.length === 0) return;
+  warn("\nAmbiguous tag-line assignments:");
+  for (const item of ambiguous) {
+    info(`  ${color.yellow(item.tag)} ${color.dim(`(matches: ${item.lines.join(", ")})`)}`);
   }
 }
 
+function diagnosticsForLine(
+  report: AuditReport,
+  lineName: string,
+  includeOrphans: boolean,
+): AuditDiagnostic[] {
+  return report.diagnostics.filter((diagnostic) =>
+    (includeOrphans && diagnostic.code === "orphan-tag") ||
+    diagnostic.line === lineName ||
+    diagnostic.lines?.includes(lineName),
+  );
+}
+
+/** List tags using the same complete assignment report consumed by audit. */
 export async function runList(cwd: string, flags: ListFlags): Promise<number> {
   try {
+    if (flags.all && flags.tag) {
+      throw new Error("--all and --tag are mutually exclusive.");
+    }
+
     const resolved = await resolveConfig(cwd);
     const { config } = resolved;
     await ensureRepo({ cwd });
-    const allTags = await listTags({ cwd });
-    const assignment = assignTagsToLines(allTags, config.lines);
-
-    if (flags.all && flags.tag) {
-      printError("--all and --tag are mutually exclusive.");
-      return 1;
-    }
+    const report = auditTags(await listTags({ cwd }), config.lines);
 
     if (flags.all) {
       if (flags.json) {
-        const lines = config.lines.map((line) => {
-          const model = createModel(line.model);
-          const pattern = compilePattern(line.pattern);
-          const lineTags = assignment.byLine.get(line.name) ?? [];
-          const analysis = analyzeTags(lineTags, pattern, model);
-          return { line: line.name, ...analysisToJson(analysis) };
-        });
-        info(
-          JSON.stringify(
-            {
-              lines,
-              orphans: assignment.orphans,
-              ...implicitConfigJson(resolved),
-            },
-            null,
-            2,
-          ),
+        emitJson(
+          "list",
+          {
+            config: configMetadata(resolved),
+            lines: report.lines,
+            orphans: report.orphans,
+            ambiguous: report.ambiguous,
+          },
+          report.diagnostics,
         );
         return 0;
       }
 
-      // Human-readable --all output
-      for (const line of config.lines) {
-        const model = createModel(line.model);
-        const pattern = compilePattern(line.pattern);
-        const lineTags = assignment.byLine.get(line.name) ?? [];
-        const analysis = analyzeTags(lineTags, pattern, model);
-        printLineSection(line.name, analysis);
-      }
-
-      if (assignment.orphans.length > 0) {
-        printOrphans(assignment.orphans);
-      }
+      printImplicitConfigNotice(resolved);
+      for (const line of report.lines) printLineSection(line);
+      if (report.orphans.length > 0) printOrphans(report.orphans);
+      printAmbiguous(report);
       return 0;
     }
 
-    // Single-line path: default or --tag <name>
-    const line = selectLine(config, flags.tag);
-    const model = createModel(line.model);
-    const pattern = compilePattern(line.pattern);
-    const lineTags = assignment.byLine.get(line.name) ?? [];
-    // Single-line config: feed allTags so non-matching tags appear as pattern-mismatch
-    // anomalies — preserves backward-compatible behaviour (allTags === lineTags + orphans).
-    // Multi-line config: feed only this line's own bucket (spec 5.3); orphans belong to
-    // the `list --all` view and must NOT pollute a single-line analysis.
-    const tagsForAnalysis = config.lines.length === 1 ? allTags : lineTags;
-    const analysis = analyzeTags(tagsForAnalysis, pattern, model);
+    const selected = selectLine(config, flags.tag);
+    const line = report.lines.find((item) => item.line === selected.name)!;
+    // A single-line config historically displayed every nonmatching tag. Keep
+    // that visibility, but name such tags as orphans rather than assigning a
+    // false pattern-mismatch owner.
+    const includeOrphans = config.lines.length === 1;
+    const diagnostics = diagnosticsForLine(report, line.line, includeOrphans);
 
     if (flags.json) {
-      info(
-        JSON.stringify(
-          { line: line.name, ...analysisToJson(analysis), ...implicitConfigJson(resolved) },
-          null,
-          2,
-        ),
+      emitJson(
+        "list",
+        {
+          config: configMetadata(resolved),
+          line: line.line,
+          conforming: line.conforming,
+          anomalies: line.anomalies,
+          latest: line.latest,
+          ...(includeOrphans ? { orphans: report.orphans } : {}),
+          ambiguous: report.ambiguous.filter((item) => item.lines.includes(line.line)),
+        },
+        diagnostics,
       );
       return 0;
     }
 
-    printImplicitConfigNotice(resolved, flags.json);
-
-    if (analysis.conforming.length === 0 && analysis.anomalies.length === 0) {
-      info("No tags found.");
-      return 0;
-    }
-
-    printAnalysisBody(analysis);
+    printImplicitConfigNotice(resolved);
+    if (line.conforming.length === 0 && line.anomalies.length === 0) info("No tags found.");
+    else printAnalysisBody(line);
+    if (includeOrphans && report.orphans.length > 0) printOrphans(report.orphans);
+    printAmbiguous(report, line.line);
     return 0;
   } catch (err) {
-    printError(err);
+    if (flags.json) emitJsonError("list", err);
+    else printError(err);
     return 1;
   }
 }
