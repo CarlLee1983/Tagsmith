@@ -175,6 +175,31 @@ describe("tagsmith CLI (built binary)", () => {
     });
   });
 
+  it("plans releases through the built CLI without creating tags", () => {
+    run(dir, ["init", "--yes"]);
+    writeFileSync(path.join(dir, "feature.txt"), "enabled\n");
+    execFileSync("git", ["add", "feature.txt"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "feat: add planning"], { cwd: dir });
+
+    const r = run(dir, ["plan", "--all", "--from-commits", "--json"]);
+    const plan = JSON.parse(r.stdout);
+
+    expect(r.code).toBe(0);
+    expect(plan).toMatchObject({
+      schemaVersion: 1,
+      command: "plan",
+      ok: true,
+      data: { hasReleases: true },
+    });
+    expect(plan.data.lines[0]).toMatchObject({
+      line: "default",
+      status: "ready",
+      candidate: { tag: "v0.1.0" },
+      recommendation: { level: "minor" },
+    });
+    expect(execFileSync("git", ["tag", "--list"], { cwd: dir }).toString()).toBe("");
+  });
+
   it("shows a welcome banner and first step in top-level help", () => {
     const r = run(dir, ["--help"]);
     expect(r.code).toBe(0);

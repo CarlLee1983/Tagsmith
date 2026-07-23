@@ -46,7 +46,7 @@ describe("JSON schema", () => {
       "schemaVersion", "command", "ok", "data", "diagnostics",
     ]);
     expect(schema.properties.schemaVersion.const).toBe(1);
-    expect(schema.properties.command.enum).toEqual(["list", "check", "next", "audit"]);
+    expect(schema.properties.command.enum).toEqual(["list", "check", "next", "audit", "plan"]);
     expect(schema.definitions.diagnostic.required).toEqual(["code", "severity", "message"]);
   });
 });

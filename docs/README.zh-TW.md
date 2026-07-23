@@ -161,9 +161,12 @@ workspace 維持獨立版本序列；搭配 `--require-changes`，只有該套�
 ```bash
 tagsmith next --tag api --require-changes
 tagsmith create --tag api --require-changes --push
+tagsmith plan --all --from-commits
 ```
 
 `workspace` 必須是 repo 內的相對路徑；未設定時，既有單一 repo 的設定與行為完全不變。
+`plan --all` 會讀取所有已設定的 line：有 `workspace` 的 line 只檢查該套件，未設定者則
+檢查整個 repository。
 
 ### Release readiness
 
@@ -306,6 +309,55 @@ tagsmith audit --json
 tagsmith audit --fetch --remote origin
 ```
 
+### `tagsmith plan --all`
+
+唯讀地一次判斷所有設定 line 的發版需要。輸出順序與 `.tagsmith.json` 相同；每條 line
+會是 `ready`、`skipped` 或 `blocked`。`ready` 的 candidate 與以相同條件執行
+`tagsmith next --tag <name>` 一致；workspace 沒有已提交變更時為 `skipped`，不會建立或
+推送任何 tag。
+
+| 旗標 | 說明 |
+|------|------|
+| `--all` | 必填；明確要求檢視全部已設定 line |
+| `--json` | 輸出可供 CI / script 讀取的 versioned JSON |
+| `--fetch` | 規劃前從 remote 取回 tags |
+| `--remote <name>` | `--fetch` 使用的 remote（預設 `origin`） |
+| `--from-commits` | 依 Conventional Commits 建議 SemVer bump；非 SemVer line 會明確 blocked |
+| `--require-changes` | 要求每條 line 宣告 `workspace`；未變更 line 仍是 `skipped` |
+
+```jsonc
+// tagsmith plan --all --from-commits --json
+{
+  "schemaVersion": 1,
+  "command": "plan",
+  "ok": true,
+  "data": {
+    "defaultLine": "api",
+    "hasReleases": true,
+    "lines": [
+      {
+        "line": "api",
+        "workspace": "packages/api",
+        "status": "ready",
+        "changed": true,
+        "bump": "minor",
+        "candidate": { "tag": "api/v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false },
+        "recommendation": { "level": "minor", "reasons": [{ "id": "…", "level": "minor", "summary": "feat(api): add search" }] },
+        "commits": [{ "id": "…", "summary": "feat(api): add search" }],
+        "blockers": [],
+        "anomalies": []
+      },
+      { "line": "web", "status": "skipped", "changed": false, "bump": null, "candidate": null }
+    ]
+  },
+  "diagnostics": []
+}
+```
+
+`blocked` line 會讓 command 回傳非零 exit code，並以
+`ambiguous-assignment`、`workspace-required`、`from-commits-unsupported` 等穩定 code
+說明原因；其他 line 的結果仍會完整輸出。
+
 ### `tagsmith check`
 驗證指定 tag 是否符合規格；不帶參數時檢查 repo 內所有既有 tag。
 適合用於 CI 或 git hook（exit 0 = 全部合規，exit 1 = 發現異常）。
@@ -421,6 +473,9 @@ tagsmith next --from-commits
 
 # monorepo：只有 api 套件有變更才建立其 tag
 tagsmith create --tag api --require-changes --push
+
+# monorepo：先規劃全部套件，再逐一明確建立 ready 的 tag
+tagsmith plan --all --from-commits --json
 ```
 
 ## 遠端安全與 CI
@@ -431,13 +486,13 @@ tagsmith create --tag api --require-changes --push
 `--dry-run` 預設維持本地操作；需要完全比照遠端狀態時請明確加上 `--fetch`。
 
 `tagsmith check --strict <tag>` 會額外將候選版本與 repo 既有歷史比對；不帶 tag 時會嚴格
-稽核全部本地 tag。所有 `--json` 讀取型指令（`list`、`check`、`next`、`audit`）都輸出
+稽核全部本地 tag。所有 `--json` 讀取型指令（`list`、`check`、`next`、`audit`、`plan`）都輸出
 `schemaVersion`、`command`、`ok`、`data`、`diagnostics`；請從 `data` 讀取指令資料，並用
 diagnostic `code` 而不是 message 做自動化判斷。共同結構請見
 [`json-output.schema.json`](../json-output.schema.json)。
 
-本 repo 也可直接作為可重用 GitHub Action：自行安裝並建置 Tagsmith、預設 fetch tags，最後
-執行 `audit --json`。
+本 repo 也可直接作為可重用 GitHub Action：自行安裝並建置 Tagsmith、預設 fetch tags，先
+執行 `audit --json`，再輸出唯讀的 `plan --all --json`。
 
 ```yaml
 name: Validate tags
@@ -448,11 +503,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: CarlLee1983/Tagsmith@main # 正式環境請固定 release tag 或 commit SHA。
+      - id: tagsmith
+        uses: CarlLee1983/Tagsmith@main # 正式環境請固定 release tag 或 commit SHA。
+        with:
+          plan-from-commits: "true"
+          plan-tag: api
+      - if: steps.tagsmith.outputs.has-releases == 'true'
+        run: echo '${{ steps.tagsmith.outputs.plan }}' | jq .
 ```
 
 若設定檔不在 repo 根目錄，或已自行同步 tags，可設定：
-`with: { working-directory: packages/api, fetch-tags: "false" }`。
+`with: { working-directory: packages/api, fetch-tags: "false" }`。Action 的 `plan` output
+是完整 JSON envelope；`has-releases` 在任一 line 為 ready 時為 `true`；`next-tag` 是
+`plan-tag` 或設定預設 line 的 ready candidate（否則為空字串）。它不會建立 tag。
 
 ## 搭配 husky 守 tag
 

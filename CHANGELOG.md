@@ -8,6 +8,22 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-23
+
+### Added
+
+- `tagsmith plan --all`, a read-only, configuration-ordered monorepo release
+  plan with `ready`, `skipped`, and per-line `blocked` results.
+- Workspace-scoped committed-change and Conventional Commit evidence, candidate
+  tags, stable blockers, and `hasReleases` in the versioned plan JSON output.
+- GitHub Action outputs for the full plan JSON, whether any line is ready, and
+  the selected line's next tag.
+
+### Changed
+
+- The JSON envelope now recognizes the `plan` command while retaining schema
+  version 1 and the existing diagnostics contract.
+
 ## [0.6.0] - 2026-07-23
 
 ### Added
@@ -116,7 +132,8 @@ to [Semantic Versioning](https://semver.org/).
 - A three-layer core/git/CLI architecture and unit, integration, and CLI E2E
   test coverage.
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0

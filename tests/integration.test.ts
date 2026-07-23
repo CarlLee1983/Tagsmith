@@ -8,6 +8,7 @@ import {
   listTags,
   listCommitMessages,
   hasWorkspaceChanges,
+  hasCommittedChanges,
   createTag,
   fetchTags,
   pushTag,
@@ -84,6 +85,16 @@ describe("git integration", () => {
     await createTag({ cwd: dir, name: "v1.1.0", message: "release 1.1" });
     const tags = await listTags({ cwd: dir });
     expect(tags.sort()).toEqual(["v1.0.0", "v1.1.0"]);
+  });
+
+  it("treats a repository with no commits as unchanged for release planning", async () => {
+    const empty = await mkdtemp(path.join(tmpdir(), "tagsmith-empty-"));
+    try {
+      execFileSync("git", ["init", "-q"], { cwd: empty });
+      expect(await hasCommittedChanges({ cwd: empty })).toBe(false);
+    } finally {
+      await rm(empty, { recursive: true, force: true });
+    }
   });
 
   it("fetches tags created by another clone", async () => {

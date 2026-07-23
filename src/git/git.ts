@@ -93,6 +93,44 @@ export interface WorkspaceChangesOptions extends GitOptions {
   since?: string | null;
 }
 
+export interface CommittedChangesOptions extends GitOptions {
+  /** Limit the comparison to a repository-relative workspace path. */
+  workspace?: string;
+  /** Latest release tag; omit it to determine whether any history exists. */
+  since?: string | null;
+}
+
+/**
+ * Return whether the repository, or one configured workspace, has committed
+ * changes since a tag. Worktree-only edits deliberately do not count.
+ */
+export async function hasCommittedChanges(
+  opts: CommittedChangesOptions,
+): Promise<boolean> {
+  if (opts.since === undefined || opts.since === null) {
+    const args = ["log", "-1", "--format=%H"];
+    if (opts.workspace !== undefined) args.push("--", workspacePathspec(opts.workspace));
+    const result = await tryGit(args, opts.cwd);
+    if (result.code !== 0) {
+      // `git log` exits non-zero in a freshly initialized repository. That is
+      // simply an empty committed history, not an inspection failure.
+      const head = await tryGit(["rev-parse", "-q", "--verify", "HEAD"], opts.cwd);
+      if (head.code !== 0) return false;
+      const scope = opts.workspace === undefined ? "repository" : `workspace "${opts.workspace}"`;
+      throw new GitError(`Could not inspect ${scope}.`);
+    }
+    return result.stdout.trim() !== "";
+  }
+
+  const args = ["diff", "--quiet", `${opts.since}..HEAD`];
+  if (opts.workspace !== undefined) args.push("--", workspacePathspec(opts.workspace));
+  const result = await tryGit(args, opts.cwd);
+  if (result.code === 0) return false;
+  if (result.code === 1) return true;
+  const scope = opts.workspace === undefined ? "repository" : `workspace "${opts.workspace}"`;
+  throw new GitError(`Could not inspect ${scope} since "${opts.since}".`);
+}
+
 /**
  * Return whether a workspace has changed since a tag. A workspace without a
  * prior tag is considered changed once it has any committed history.
@@ -100,26 +138,7 @@ export interface WorkspaceChangesOptions extends GitOptions {
 export async function hasWorkspaceChanges(
   opts: WorkspaceChangesOptions,
 ): Promise<boolean> {
-  if (opts.since === undefined || opts.since === null) {
-    const result = await tryGit(
-      ["log", "-1", "--format=%H", "--", workspacePathspec(opts.workspace)],
-      opts.cwd,
-    );
-    if (result.code !== 0) {
-      throw new GitError(`Could not inspect workspace "${opts.workspace}".`);
-    }
-    return result.stdout.trim() !== "";
-  }
-
-  const result = await tryGit(
-    ["diff", "--quiet", `${opts.since}..HEAD`, "--", workspacePathspec(opts.workspace)],
-    opts.cwd,
-  );
-  if (result.code === 0) return false;
-  if (result.code === 1) return true;
-  throw new GitError(
-    `Could not inspect workspace "${opts.workspace}" since "${opts.since}".`,
-  );
+  return hasCommittedChanges(opts);
 }
 
 /** Keep configured workspace paths rooted at the worktree, not the caller's cwd. */
