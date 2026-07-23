@@ -83,6 +83,10 @@ npm run build            # 編譯到 dist/
   - 整合 — `tests/integration.test.ts`（在 `os.tmpdir()` 建臨時 git repo）
   - 指令 — `tests/commands.test.ts`（in-process）、`tests/cli.test.ts`（built binary E2E）
 - CLI E2E 需先 `npm run build`。
+- 每個 PR 與推送至 `main` 都會執行
+  [Docsentry](https://github.com/CarlLee1983/Docsentry)，將現行面向使用者的 Markdown
+  與 `package.json`、`schema.json`、`action.yml` 交叉驗證；`docs/history/` 的歷史紀錄
+  刻意不納入檢查。
 
 ## 提交規範
 

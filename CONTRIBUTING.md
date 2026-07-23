@@ -76,6 +76,10 @@ Model rules:
 - Unit tests live in focused `tests/*.test.ts` files; integration tests create
   temporary git repositories; CLI end-to-end tests use the built binary.
 - Run `npm run build` before CLI E2E tests.
+- Documentation governance runs [Docsentry](https://github.com/CarlLee1983/Docsentry)
+  on every pull request and `main` push. It verifies active user-facing Markdown
+  against `package.json`, `schema.json`, and `action.yml`; historical records in
+  `docs/history/` are intentionally excluded.
 - Use Conventional Commits: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`,
   `test`, or `chore`, optionally followed by a scope.
 - Before opening a pull request, run `npm run typecheck`, `npm test`, and

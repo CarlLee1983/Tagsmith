@@ -1,0 +1,45 @@
+{
+  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.2.0/schema.json",
+  "documents": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "docs/*.md"
+  ],
+  "package": {
+    "manifest": "package.json",
+    "assertions": [
+      {
+        "document": "README.md",
+        "label": "published package name",
+        "value": "@carllee1983/tagsmith",
+        "evidence": "/name"
+      },
+      {
+        "document": "README.md",
+        "label": "minimum Node version",
+        "value": ">=18",
+        "evidence": "/engines/node"
+      }
+    ]
+  },
+  "schemaExamples": [
+    {
+      "documents": [
+        "README.md",
+        "docs/README.zh-TW.md"
+      ],
+      "language": "json",
+      "schema": "schema.json"
+    }
+  ],
+  "actionExamples": [
+    {
+      "documents": [
+        "README.md",
+        "docs/README.zh-TW.md"
+      ],
+      "action": "action.yml"
+    }
+  ]
+}
