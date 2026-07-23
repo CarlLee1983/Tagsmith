@@ -7,6 +7,21 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-23
+
+### 新增
+
+- `tagsmith audit`：唯讀稽核完整 tag 歷史，回報版本異常、無主 tag 與 tag-line 歸屬歧義。
+- `list`、`check`、`next`、`audit` 的 `--json` 共同採用可版本化的 envelope，並發布
+  `json-output.schema.json` 作為合約。
+- `ambiguous-assignment` 診斷與 check 結果的 `matches` 欄位；同一 tag 符合多條線時不再
+  默默採用第一條。
+
+### 變更
+
+- `next` 與 `create` 遇到會影響指定線的歧義歷史時停止，不再以不確定的版本序列推導 tag。
+- 可重用 GitHub Action 在同步 tags 後執行 `audit --json`。
+
 ## [0.4.0] - 2026-07-23
 
 ### 新增
@@ -108,7 +123,8 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.1...v0.3.0

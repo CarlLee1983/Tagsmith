@@ -8,6 +8,22 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-23
+
+### Added
+
+- `tagsmith audit`, a read-only complete-history audit for malformed or
+  duplicate versions, orphan tags, and tag-line assignment ambiguity.
+- A versioned JSON output envelope for `list`, `check`, `next`, and `audit`,
+  plus the published `json-output.schema.json` contract.
+- `ambiguous-assignment` diagnostics and `matches` in check results, so a tag
+  matching multiple configured lines is never silently owned by the first one.
+
+### Changed
+
+- `next` and `create` now refuse a tag line affected by ambiguous tag history.
+- The reusable GitHub Action runs `audit --json` after fetching tags.
+
 ## [0.4.0] - 2026-07-23
 
 ### Added
@@ -84,7 +100,8 @@ to [Semantic Versioning](https://semver.org/).
 - A three-layer core/git/CLI architecture and unit, integration, and CLI E2E
   test coverage.
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.1...v0.3.0

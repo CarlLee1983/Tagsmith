@@ -11,6 +11,7 @@ to their English counterparts.
 | Contributing and architecture | [CONTRIBUTING](../CONTRIBUTING.md) | [CONTRIBUTING.zh-TW.md](CONTRIBUTING.zh-TW.md) |
 | Validate pushed tags with Husky | [husky-pre-push.md](husky-pre-push.md) | [husky-pre-push.zh-TW.md](husky-pre-push.zh-TW.md) |
 | Release history | [CHANGELOG](../CHANGELOG.md) | [CHANGELOG.zh-TW.md](CHANGELOG.zh-TW.md) |
+| Active development roadmap | [Roadmap (繁體中文)](../ROADMAP.zh-TW.md) | [路線圖](../ROADMAP.zh-TW.md) |
 
 For past decisions and implementation plans, see [history/](history/). These
 are dated project artifacts, not the current user-facing guide or active work

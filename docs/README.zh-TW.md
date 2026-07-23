@@ -230,57 +230,51 @@ tagsmith create --tag api --require-changes --push
 ### `tagsmith list` (`ls`)
 列出 git tag，依規格解析後由新到舊排序，並標示異常 tag：
 **不符樣式**（`pattern-mismatch`）、**版本無法解析**（`unparseable-version`）、
-**重複版本**（`duplicate-version`）。
+**重複版本**（`duplicate-version`）。多線設定下，若同一 tag 同時符合多條線，會另外
+標示為 **歸屬歧義**（`ambiguous-assignment`），而不再默默依設定順序指派。
 
 預設只列出 `default` 線的 tag；多線設定可用 `--tag` 指定線或 `--all` 一次列出所有線。
 
 | 旗標 | 說明 |
 |------|------|
-| `--json` | 輸出結構化 JSON |
+| `--json` | 輸出版本化 JSON envelope（見下方） |
 | `-t, --tag <name>` | 只列出指定線的 tag |
 | `--all` | 列出每條線（各自分組）與無主 tag（Unassigned / orphan tags） |
 
 ```jsonc
-// tagsmith list --json（單線或指定 --tag）
+// tagsmith list --all --json（多線；共同 envelope）
 {
-  "conforming": [
-    { "tag": "v1.2.0", "version": "1.2.0" },
-    { "tag": "v1.1.0", "version": "1.1.0" }
-  ],
-  "anomalies": [
-    { "tag": "nightly", "reason": "pattern-mismatch" }
-  ],
-  "latest": "v1.2.0"
+  "schemaVersion": 1,
+  "command": "list",
+  "ok": true,
+  "data": {
+    "lines": [{ "line": "app", "latest": "v1.2.0" }],
+    "orphans": ["legacy-tag"],
+    "ambiguous": []
+  },
+  "diagnostics": [{ "code": "orphan-tag", "severity": "warning", "message": "..." }]
 }
 ```
 
-```jsonc
-// tagsmith list --all --json（多線）
-{
-  "lines": [
-    {
-      "line": "app",
-      "conforming": [{ "tag": "v1.2.0", "version": "1.2.0" }],
-      "anomalies": [],
-      "latest": "v1.2.0"
-    },
-    {
-      "line": "release",
-      "conforming": [{ "tag": "release/2026.06.0", "version": "2026.06.0" }],
-      "anomalies": [],
-      "latest": "release/2026.06.0"
-    }
-  ],
-  "orphans": ["legacy-tag"]
-}
+### `tagsmith audit`
+
+唯讀稽核完整 tag 歷史，不建立、不推送、也不改寫任何 tag。它會彙整每條線的合規 tag
+與最新版本，並回報無主 tag、無法解析或重複的版本，以及同時符合多條線的 tag。
+`orphan-tag` 是 warning；`unparseable-version`、`duplicate-version` 與
+`ambiguous-assignment` 是 error，出現 error 時指令會以 exit 1 結束。
+
+```bash
+tagsmith audit
+tagsmith audit --json
 ```
 
 ### `tagsmith check`
 驗證指定 tag 是否符合規格；不帶參數時檢查 repo 內所有既有 tag。
 適合用於 CI 或 git hook（exit 0 = 全部合規，exit 1 = 發現異常）。
 
-多線設定下，每個 tag 會對照所有線進行比對，並在結果中回報歸屬線（或 `null` 表示無主）。
-`--tag <name>` 可限定只對某條線驗證。
+多線設定下，每個 tag 會對照所有線進行比對，並在結果中回報唯一歸屬線與完整的
+`matches`。`line: null` 且 `anomaly: "ambiguous-assignment"` 代表有多條線符合，
+不能安全地選其中一條。`--tag <name>` 不會隱藏這種設定歧義。
 
 | 旗標 | 說明 |
 |------|------|
@@ -291,12 +285,17 @@ tagsmith create --tag api --require-changes --push
 ```jsonc
 // tagsmith check v1.2.3 "release/2026.06.1" junk --json
 {
-  "results": [
-    { "raw": "v1.2.3",           "line": "app",     "ok": true,  "anomaly": null },
-    { "raw": "release/2026.06.1","line": "release",  "ok": true,  "anomaly": null },
-    { "raw": "junk",             "line": null,        "ok": false, "anomaly": "pattern-mismatch" }
-  ],
-  "strict": false
+  "schemaVersion": 1,
+  "command": "check",
+  "ok": false,
+  "data": {
+    "results": [
+      { "raw": "v1.2.3", "line": "app", "matches": ["app"], "ok": true, "anomaly": null },
+      { "raw": "junk", "line": null, "matches": [], "ok": false, "anomaly": "pattern-mismatch" }
+    ],
+    "strict": false
+  },
+  "diagnostics": [{ "code": "pattern-mismatch", "severity": "error", "message": "..." }]
 }
 ```
 
@@ -316,7 +315,13 @@ tagsmith create --tag api --require-changes --push
 
 ```jsonc
 // tagsmith next --level minor --json
-{ "tag": "v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false, "line": "app", "workspace": null }
+{
+  "schemaVersion": 1,
+  "command": "next",
+  "ok": true,
+  "data": { "tag": "v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false, "line": "app", "workspace": null },
+  "diagnostics": []
+}
 ```
 
 ### `tagsmith create`
@@ -347,7 +352,7 @@ tagsmith create --push
 tagsmith create -l minor -m "新增登入 API"
 
 # CI 中取得下一個 tag 字串
-NEXT=$(tagsmith next --json | jq -r .tag)
+NEXT=$(tagsmith next --json | jq -r .data.tag)
 
 # 補一個歷史版本（明知順序在後）
 tagsmith create --set-version 1.0.5 --allow-out-of-order
@@ -382,11 +387,13 @@ tagsmith create --tag api --require-changes --push
 `--dry-run` 預設維持本地操作；需要完全比照遠端狀態時請明確加上 `--fetch`。
 
 `tagsmith check --strict <tag>` 會額外將候選版本與 repo 既有歷史比對；不帶 tag 時會嚴格
-稽核全部本地 tag。JSON 的 `line: null` 表示沒有任何設定的 pattern 符合；若 pattern 符合但
-版本無法解析，仍會標示其所屬線。
+稽核全部本地 tag。所有 `--json` 讀取型指令（`list`、`check`、`next`、`audit`）都輸出
+`schemaVersion`、`command`、`ok`、`data`、`diagnostics`；請從 `data` 讀取指令資料，並用
+diagnostic `code` 而不是 message 做自動化判斷。共同結構請見
+[`json-output.schema.json`](../json-output.schema.json)。
 
 本 repo 也可直接作為可重用 GitHub Action：自行安裝並建置 Tagsmith、預設 fetch tags，最後
-執行 `check --json --strict`。
+執行 `audit --json`。
 
 ```yaml
 name: Validate tags

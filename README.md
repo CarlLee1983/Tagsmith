@@ -14,8 +14,8 @@ Tag formats are configurable, including `v{version}` and `release/{version}`.
 ## Why Tagsmith?
 
 - **Standardize** — keep the project's tag convention in `.tagsmith.json`.
-- **Inspect** — list tags in semantic order and identify format, parsing, and
-  duplicate-version problems.
+- **Inspect** — list or audit tags in semantic order and identify format,
+  parsing, duplicate-version, orphan, and tag-line assignment problems.
 - **Create safely** — validate the format, parseability, strict version ordering,
   and tag uniqueness before creating a tag.
 - **Start with zero configuration** — infer a SemVer-style pattern from existing
@@ -186,6 +186,7 @@ non-canonical tags from representing the same version.
 | `tagsmith init` | Interactively create a tag specification (optional) |
 | `tagsmith guide` | Walk through init → list → next → create |
 | `tagsmith list` / `ls` | List tags in semantic order and report anomalies |
+| `tagsmith audit` | Audit complete tag history and tag-line assignment safety |
 | `tagsmith check [tags...]` | Validate supplied tags, or all repository tags with no arguments |
 | `tagsmith next` | Compute the next valid tag without creating it |
 | `tagsmith create` | Create the next or an explicit tag after validation |
@@ -196,6 +197,7 @@ Useful options:
 
 ```bash
 tagsmith list --all                    # Show every configured line and orphan tags
+tagsmith audit --json                  # Machine-readable complete tag audit
 tagsmith check --strict --json         # Audit tag shape and duplicate versions
 tagsmith next --fetch --remote origin  # Include tags fetched from a remote
 tagsmith next --from-commits           # Recommend a SemVer bump from commits
@@ -212,6 +214,32 @@ recommends `patch`. For a workspace-scoped line, the recommendation considers
 only commits that touch that workspace. `create` also accepts `--message`, `--set-version`,
 `--push`, `--dry-run`, and `--allow-out-of-order`.
 
+### Auditing assignment safety
+
+`tagsmith audit` is a read-only repository check. It reports malformed and
+duplicate versions, tags that no configured line owns, and tags whose pattern
+matches more than one line. An ambiguous tag is not silently assigned according
+to configuration order: `next` and `create` refuse to use a line affected by
+that history until it is resolved.
+
+Every `--json` result from `list`, `check`, `next`, and `audit` uses the same
+versioned envelope. Read command-specific fields from `data`, and make
+automation decisions from stable diagnostic `code` values rather than parsing
+human-readable messages:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "next",
+  "ok": true,
+  "data": { "tag": "v1.3.0" },
+  "diagnostics": []
+}
+```
+
+The published [JSON output schema](json-output.schema.json) describes the common
+envelope. Existing scripts that previously read `.tag` should read `.data.tag`.
+
 ## Remote safety and CI
 
 `create --push` fetches tags from `origin` before choosing a version, so a
@@ -222,12 +250,12 @@ race after the fetch; re-fetch and choose a new version in that case. A
 `--dry-run` remains local unless `--fetch` is supplied explicitly.
 
 `check --strict <tag>` also checks a proposed version against the repository's
-existing tag history. Without an explicit tag, it audits all local tags.
-In its JSON result, `line: null` means no configured pattern matched; an
-unparseable version still identifies the line whose pattern it matched.
+existing tag history. `check` reports `matches` for every candidate; a
+`line: null` plus `ambiguous-assignment` means more than one configured pattern
+matched, so there is no safe unique owner.
 
 The repository is a reusable GitHub Action. It builds Tagsmith from the checked
-out action, fetches tags by default, then runs `check --json --strict`:
+out action, fetches tags by default, then runs `audit --json`:
 
 ```yaml
 name: Validate tags
@@ -290,6 +318,7 @@ command.
 - [Contributing guide](CONTRIBUTING.md) · [繁體中文](docs/CONTRIBUTING.zh-TW.md)
 - [Husky pre-push setup](docs/husky-pre-push.md) · [繁體中文](docs/husky-pre-push.zh-TW.md)
 - [Changelog](CHANGELOG.md)
+- [Development roadmap (繁體中文)](ROADMAP.zh-TW.md)
 
 ## Development
 
