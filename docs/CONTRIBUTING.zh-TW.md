@@ -34,7 +34,7 @@ npm run build            # 編譯到 dist/
 | git | `src/git/` | `git` 指令薄封裝 | 只做 IO，所有指令用 `execFile`（陣列參數，無 shell） |
 | cli | `src/cli/` | commander 指令組裝與輸出 | 只負責解析旗標、呼叫 core/git、格式化輸出 |
 
-設計細節見 [設計文件](superpowers/specs/2026-06-10-tagsmith-design.md)。
+設計細節見 [初始設計記錄](history/designs/2026-06-10-tagsmith-design.md)。
 
 ## 設定格式
 

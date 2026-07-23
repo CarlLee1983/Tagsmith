@@ -12,5 +12,6 @@ to their English counterparts.
 | Validate pushed tags with Husky | [husky-pre-push.md](husky-pre-push.md) | [husky-pre-push.zh-TW.md](husky-pre-push.zh-TW.md) |
 | Release history | [CHANGELOG](../CHANGELOG.md) | [CHANGELOG.zh-TW.md](CHANGELOG.zh-TW.md) |
 
-The `superpowers/` directory contains dated design and implementation records.
-They are historical project artifacts, not the current user-facing guide.
+For past decisions and implementation plans, see [history/](history/). These
+are dated project artifacts, not the current user-facing guide or active work
+tracking.

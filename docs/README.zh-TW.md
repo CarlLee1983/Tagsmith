@@ -420,7 +420,7 @@ HUSKY=0 git merge ...           # 同樣略過
 - `git/` — `git` 指令薄封裝（`execFile`，陣列參數、無 shell）。
 - `cli/` — commander 指令組裝與輸出。
 
-詳見 [設計文件](superpowers/specs/2026-06-10-tagsmith-design.md)。
+詳見 [初始設計記錄](history/designs/2026-06-10-tagsmith-design.md)。
 
 ## 開發
 

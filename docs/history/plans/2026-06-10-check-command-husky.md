@@ -1,7 +1,5 @@
 # `tagsmith check` 指令 + husky pre-push 範本 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** 新增 `tagsmith check [tags...]` 指令（雙模式驗證）與一份 husky `pre-push` 範本，讓使用者能在 git hook / CI 中擋下不符規格的 git tag。
 
 **Architecture:** 遵循專案三層分離鐵則——新增純函式 `core/check.ts`（零 IO）負責驗證邏輯，新增 `cli/check.ts`（runCheck）負責讀 config/git 與輸出，於 `cli/index.ts` 註冊子指令。core 複用既有 `compilePattern`/`createModel`/`analyzeTags`。husky 範本以文件交付（不改動本 repo 相依）。

@@ -1,14 +1,12 @@
 # 多 tag 線支援 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** 讓單一專案在一份 `.tagsmith.json` 中定義多條獨立 tag 線(各自版本模型),預設為單一 semver 主線,並完全相容既有單線設定檔。
 
 **Architecture:** 維持三層分離(core 純函式 → git → cli)。Config 層用 zod union 解析新陣列格式與舊扁平格式,正規化成內部 `{ lines, default }`。Core 函式改吃單一 `TagLine`;新增純函式 `assignTagsToLines` 把 git tag 依宣告順序歸屬到各線桶,核心安全不變式(格式符合、可解析、嚴格遞增、不重複)維持 per-line 判定。CLI 用 `-t, --tag <name>` 選線。
 
 **Tech Stack:** Node.js + TypeScript(ESM)、zod、commander、vitest。
 
-**Spec:** `docs/superpowers/specs/2026-06-10-multi-tag-lines-design.md`
+**Design record:** `docs/history/designs/2026-06-10-multi-tag-lines-design.md`
 
 ---
 

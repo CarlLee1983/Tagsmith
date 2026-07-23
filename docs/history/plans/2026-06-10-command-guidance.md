@@ -1,7 +1,5 @@
 # Command Guidance (Onboarding) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Lower the first-use barrier for Tagsmith by adding first-run hints, post-command "next step" suggestions, richer `--help` examples, and an interactive `tagsmith guide` walkthrough.
 
 **Architecture:** All guidance lives in the `cli/` layer; `core/` stays pure. A new `src/cli/guidance.ts` centralizes every suggestion string and prints to stdout, going silent under `--json`. Existing command runners call guidance helpers at their success tail. A new `src/cli/guide.ts` orchestrates an interactive walkthrough via an injectable IO interface so it stays testable.

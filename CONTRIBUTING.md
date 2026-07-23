@@ -36,7 +36,7 @@ The codebase has three independently testable layers:
 | Git | `src/git/` | Small wrapper around git commands | I/O only; use `execFile` with argument arrays and no shell |
 | CLI | `src/cli/` | Commander setup and output | Parse options, call core/git, format output |
 
-See the [original design record](docs/superpowers/specs/2026-06-10-tagsmith-design.md)
+See the [original design record](docs/history/designs/2026-06-10-tagsmith-design.md)
 for the initial design decisions.
 
 ## Configuration changes

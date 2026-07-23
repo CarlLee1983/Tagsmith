@@ -1,7 +1,5 @@
 # Merge Policy Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add a configurable "protected-branch merge policy" feature to tagsmith so any repo can install git hooks that block disallowed merges, replacing per-repo shell scripts.
 
 **Architecture:** A new decoupled module `src/core/merge-policy/` holds pure logic (zod schema, glob matching, decision) plus git-source resolution. Two new CLI commands — `merge-check` (called by hooks) and `hooks install/uninstall` (writes the hooks) — wire it into the existing commander program. The `mergePolicy` block lives in the existing `.tagsmith.json` but is loaded independently of the tag-line config, so it is fully optional and backward compatible.
@@ -12,7 +10,7 @@
 
 ## Spec reference
 
-`docs/superpowers/specs/2026-06-11-merge-policy-design.md`
+`docs/history/designs/2026-06-11-merge-policy-design.md`
 
 ## File Structure
 
