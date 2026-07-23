@@ -1,7 +1,157 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Tagsmith defines, inspects, and safely creates git tags."><title>Tagsmith — Safe git tag management</title><link rel="stylesheet" href="../assets/site.css"></head><body>
-<header class="hero"><div class="wrap"><nav class="nav"><a class="brand" href="./">tag<span>smith</span></a><a class="lang" href="../" lang="zh-Hant">繁體中文 →</a></nav><div class="hero-grid"><div><span class="eyebrow">Git tag workflow, made reliable</span><h1>Every release starts with the <strong>right tag.</strong></h1><p class="lead">Tagsmith lets your team define the convention, inspect existing tags, and validate version order and format before creating one. Less guesswork; a release trail you can trust.</p><div class="actions"><a class="button" href="https://www.npmjs.com/package/@carllee1983/tagsmith">Get it on npm</a><a class="button secondary" href="https://github.com/CarlLee1983/Tagsmith">View on GitHub</a></div></div><div class="terminal"><span class="dim"># Start in an existing repository</span><br><span class="cmd">$ tagsmith list</span><br><span class="ok">✓ 12 conforming tags · 1 anomaly</span><br><span class="cmd">$ tagsmith next --level minor</span><br><span class="ok">✓ Next tag: v1.4.0</span><br><span class="cmd">$ tagsmith create --push</span><br><span class="ok">✓ Validated and created v1.4.0</span></div></div></div></header>
-<main><section><div class="wrap"><span class="section-label">Why Tagsmith</span><h2>Tags are small—until release day makes them a risk.</h2><p class="section-intro">Manual names, mixed formats, and an ungoverned tag history leave CI, release notes, and collaborators without a common source of truth.</p><div class="grid"><article class="card"><span class="icon coral">!</span><h3>Formats drift</h3><p>`v1.2.3`, `release-1.2.3`, and `final` end up together. Soon nobody knows which tag is a real release.</p></article><article class="card"><span class="icon amber">↗</span><h3>Version order is guessed</h3><p>Backfilling history or working in parallel can create a tag below an existing version and break automation.</p></article><article class="card"><span class="icon teal">✓</span><h3>Problems surface too late</h3><p>Without local validation, an invalid tag is often found only by CI or another developer after it is pushed.</p></article></div></div></section>
-<section class="alt"><div class="wrap"><span class="section-label">Four steps</span><h2>Turn your tag convention into an executable safety net.</h2><div class="steps"><article class="step"><h3>Define or infer</h3><p>Commit `.tagsmith.json`, or start directly from existing SemVer-style tags.</p></article><article class="step"><h3>Inspect the history</h3><p>Sort semantically and flag pattern mismatches, unparseable values, and duplicate versions.</p></article><article class="step"><h3>Preview the next release</h3><p>Calculate the next safe version before changing the repository.</p></article><article class="step"><h3>Create after validation</h3><p>Check format, parseability, strict ordering, and uniqueness before the tag exists.</p></article></div></div></section>
-<section><div class="wrap"><span class="section-label">More than one release stream</span><h2>Clear rules from one project to many independent tag lines.</h2><div class="feature"><b>SemVer, CalVer, and build numbers</b><p>Choose the model that matches your release rhythm. CalVer and build numbers receive the same strict format and ordering checks.</p></div><div class="feature"><b>Zero-configuration adoption</b><p>Use Tagsmith without a configuration file. It defaults to SemVer and infers common existing patterns, so adoption does not require rewriting history.</p></div><div class="feature"><b>Multiple tag lines</b><p>Use `--tag` for app, release, or another independent sequence. Each line has its own pattern, model, and push behavior.</p></div><div class="feature"><b>Automation and workflow guardrails</b><p>`--json` supports CI. Optional merge policies use local git hooks to restrict sources that merge into protected branches.</p></div></div></section>
-<section><div class="wrap"><div class="quick"><div><span class="eyebrow">Quick start</span><h2>Start in an existing repository with three commands.</h2><p>All you need is Node.js 18+ and git. You can also install the package as a project dev dependency rather than globally.</p><a class="button secondary" href="../../README.md">Read the full documentation</a></div><div class="terminal"><span class="cmd">$ npm install -g @carllee1983/tagsmith</span><br><br><span class="cmd">$ tagsmith list</span><br><span class="cmd">$ tagsmith next</span><br><span class="cmd">$ tagsmith create --push</span></div></div></div></section></main>
-<footer class="footer"><div class="wrap"><span>Tagsmith · Define, inspect, and safely create git tags.</span><span><a href="https://github.com/CarlLee1983/Tagsmith">GitHub</a> · <a href="https://www.npmjs.com/package/@carllee1983/tagsmith">npm</a> · <a href="../" lang="zh-Hant">繁體中文</a></span></div></footer></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tagsmith helps maintainers inspect, define, and safely preview git tag conventions.">
+  <title>Tagsmith — Safe, predictable git tags</title>
+  <link rel="stylesheet" href="../assets/site.css">
+  <script src="../assets/site.js" defer></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="./" aria-label="Tagsmith home">tag<span>smith</span></a>
+        <a class="lang" href="../" lang="zh-Hant">繁體中文 <span aria-hidden="true">→</span></a>
+      </nav>
+
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">Predictable git tag conventions</span>
+          <h1>Every release starts with a <strong>safe, predictable tag.</strong></h1>
+          <p class="lead">Tagsmith helps repository maintainers inspect existing tags, make the team convention clear, and validate a proposed tag against the known local history before creating it.</p>
+
+          <div class="command-cta" aria-labelledby="try-safely">
+            <p id="try-safely" class="command-label">Try it safely</p>
+            <div class="command-row">
+              <code id="try-command">npx @carllee1983/tagsmith list</code>
+              <button class="copy-button" type="button" data-copy-target="#try-command" data-copy-success="Copied" data-copy-fallback="Select and copy the command manually.">Copy command</button>
+            </div>
+            <p class="prerequisites">Run inside a Git repository · Requires Node.js 18+</p>
+            <p class="command-note">The first run may download the package. Without JavaScript, the command remains visible and selectable.</p>
+            <p class="copy-status" aria-live="polite"></p>
+          </div>
+
+          <div class="actions">
+            <a class="button secondary" href="https://github.com/CarlLee1983/Tagsmith#readme">Learn the full workflow</a>
+          </div>
+          <p class="verification-links">Verify the project: <a href="https://github.com/CarlLee1983/Tagsmith">GitHub</a> · <a href="https://www.npmjs.com/package/@carllee1983/tagsmith">npm</a></p>
+        </div>
+
+        <div class="terminal" aria-label="Illustrative Tagsmith command output">
+          <p class="terminal-label">Illustrative output</p>
+          <span class="dim"># Inspect the repository's existing tags first</span><br>
+          <span class="cmd">$ npx @carllee1983/tagsmith list</span><br>
+          <span class="ok">✓ Found tags that match the convention</span><br>
+          <span class="dim">ℹ No config — using inferred SemVer defaults</span><br><br>
+          <span class="cmd">$ npx @carllee1983/tagsmith next</span><br>
+          <span class="ok">✓ Preview next safe tag: v1.4.0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <span class="section-label">Why Tagsmith</span>
+        <h2>Tags are small—until release day makes them a risk.</h2>
+        <p class="section-intro">Manual names, mixed formats, and an unclear tag history leave CI, release notes, and collaborators without a common source of truth.</p>
+        <div class="grid">
+          <article class="card risk-card">
+            <span class="icon coral" aria-hidden="true">!</span>
+            <h3>Formats drift</h3>
+            <p><code>v1.2.3</code>, <code>release-1.2.3</code>, and <code>final</code> end up together. Soon nobody knows which tag is a real release.</p>
+          </article>
+          <article class="card review-card">
+            <span class="icon amber" aria-hidden="true">?</span>
+            <h3>Version order is guessed</h3>
+            <p>Backfilling history or working in parallel can create a tag below an existing version and break automation.</p>
+          </article>
+          <article class="card valid-card">
+            <span class="icon teal" aria-hidden="true">✓</span>
+            <h3>Problems surface too late</h3>
+            <p>Without local inspection and validation, an invalid tag may be discovered only by CI or another developer after it is shared.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap">
+        <span class="section-label">One safe path</span>
+        <h2>Make the convention clear before choosing the next version.</h2>
+        <div class="steps">
+          <article class="step">
+            <h3>Inspect the history</h3>
+            <p>Start with <code>list</code> to sort tags semantically and flag mismatches, unparseable versions, and duplicates. Tagsmith never rewrites history automatically.</p>
+          </article>
+          <article class="step">
+            <h3>Establish intent</h3>
+            <p>A clear SemVer history can continue. For mixed, ambiguous, or non-SemVer history, use <code>init</code> to define the team convention first.</p>
+          </article>
+          <article class="step">
+            <h3>Preview safely</h3>
+            <p>Inspect again, then use <code>next</code> to calculate the next version. This step does not change the repository.</p>
+          </article>
+          <article class="step">
+            <h3>Create later</h3>
+            <p>Creation validates the convention and known local history. Pushing to a remote is a separate, deliberate action controlled by the team workflow and off by default.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <span class="section-label">Start with one line</span>
+        <h2>A clear convention can grow with your release rhythm.</h2>
+        <div class="feature">
+          <b>SemVer, CalVer, and build numbers</b>
+          <p>SemVer is the default zero-configuration evaluation path. Once the convention is explicit, choose CalVer or a monotonically increasing build number when it fits the team better.</p>
+        </div>
+        <div class="feature">
+          <b>One tag line, then scale deliberately</b>
+          <p>Start with one tag line and one shared rule. Add multiple tag lines only when app, release, or other independent sequences truly need separation.</p>
+        </div>
+        <div class="feature">
+          <b>Let automation consume the result</b>
+          <p><code>--json</code> gives CI and scripts Tagsmith's convention-evaluation result; surrounding automation remains responsible for what happens next.</p>
+        </div>
+        <div class="feature">
+          <b>Optional local workflow guardrails</b>
+          <p>Merge policy can help enforce repository conventions in local git workflows. It is not remote branch protection or server-side policy enforcement.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="quick">
+          <div>
+            <span class="eyebrow">Adopt deliberately</span>
+            <h2>After trying it, make the convention a team responsibility.</h2>
+            <p>When the inspection matches your intent, use <code>tagsmith init</code> and commit the generated <code>.tagsmith.json</code>. The convention then belongs to the team, not one maintainer's habit.</p>
+            <a class="button light" href="https://github.com/CarlLee1983/Tagsmith#readme">Read the full workflow</a>
+          </div>
+          <div class="terminal compact" aria-label="Illustrative Tagsmith adoption commands">
+            <p class="terminal-label">Adoption step</p>
+            <span class="cmd">$ npx @carllee1983/tagsmith init</span><br>
+            <span class="ok">✓ Created .tagsmith.json</span><br><br>
+            <span class="dim"># Commit the team's explicit convention</span><br>
+            <span class="cmd">$ git add .tagsmith.json</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Tagsmith · Define, inspect, and safely create git tags.</span>
+      <span><a href="https://github.com/CarlLee1983/Tagsmith">GitHub</a> · <a href="https://www.npmjs.com/package/@carllee1983/tagsmith">npm</a> · <a href="../" lang="zh-Hant">繁體中文</a></span>
+    </div>
+  </footer>
+</body>
+</html>

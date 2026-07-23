@@ -1,7 +1,157 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Tagsmith 讓團隊定義、檢視並安全建立 git tag。"><title>Tagsmith — 安全管理 git tag 的 CLI</title><link rel="stylesheet" href="assets/site.css"></head><body>
-<header class="hero"><div class="wrap"><nav class="nav"><a class="brand" href="./">tag<span>smith</span></a><a class="lang" href="en/" lang="en">English →</a></nav><div class="hero-grid"><div><span class="eyebrow">Git tag workflow, made reliable</span><h1>每一次發版，都從<strong>正確的 tag</strong>開始。</h1><p class="lead">Tagsmith 讓你定義團隊規格、檢視既有 tag，並在建立前驗證版本順序與格式。少一點猜測，多一點可追溯的發版流程。</p><div class="actions"><a class="button" href="https://www.npmjs.com/package/@carllee1983/tagsmith">在 npm 取得 Tagsmith</a><a class="button secondary" href="https://github.com/CarlLee1983/Tagsmith">查看 GitHub</a></div></div><div class="terminal"><span class="dim"># 在既有 repo 中開始</span><br><span class="cmd">$ tagsmith list</span><br><span class="ok">✓ 12 個合規 tag · 1 個異常</span><br><span class="cmd">$ tagsmith next --level minor</span><br><span class="ok">✓ 下一個 tag：v1.4.0</span><br><span class="cmd">$ tagsmith create --push</span><br><span class="ok">✓ 已驗證並建立 v1.4.0</span></div></div></div></header>
-<main><section><div class="wrap"><span class="section-label">為什麼需要它</span><h2>tag 看似小事，卻常在發版時變成風險。</h2><p class="section-intro">手動命名、不同格式與沒有規則的歷史 tag，會讓 CI、release note 和團隊協作失去共同依據。</p><div class="grid"><article class="card"><span class="icon coral">!</span><h3>格式逐漸漂移</h3><p>`v1.2.3`、`release-1.2.3`、`final` 混在一起，之後誰也無法確定哪個是正式版本。</p></article><article class="card"><span class="icon amber">↗</span><h3>版本順序靠猜</h3><p>補歷史 tag 或平行開發時，容易建立小於既有版本的 tag，破壞自動化流程。</p></article><article class="card"><span class="icon teal">✓</span><h3>推送後才發現</h3><p>沒有本機驗證，問題通常到 CI 或其他人拉取 tag 後才浮現。</p></article></div></div></section>
-<section class="alt"><div class="wrap"><span class="section-label">四個步驟</span><h2>把 tag 規格變成可執行的安全網。</h2><div class="steps"><article class="step"><h3>定義或推斷</h3><p>用 `.tagsmith.json` 固定規格，或直接從既有 SemVer tag 開始。</p></article><article class="step"><h3>檢視現況</h3><p>依語意排序，標出格式不符、無法解析與重複版本。</p></article><article class="step"><h3>預覽下一版</h3><p>在不改動 repo 的前提下，先計算下一個安全版本。</p></article><article class="step"><h3>驗證後建立</h3><p>確認格式、可解析性、嚴格遞增與 tag 唯一性後才建立。</p></article></div></div></section>
-<section><div class="wrap"><span class="section-label">不只一種 release</span><h2>從單一專案到複數 release line，都有清楚規則。</h2><div class="feature"><b>SemVer、CalVer、build number</b><p>選擇符合產品節奏的版本模型；CalVer 與 build number 也同樣受到嚴格格式與順序檢查。</p></div><div class="feature"><b>Zero-config adoption</b><p>沒有設定檔也能操作。Tagsmith 以 SemVer 預設值運作並推斷常見既有 pattern，讓導入不必先重整歷史。</p></div><div class="feature"><b>多條 tag 線</b><p>用 `--tag` 操作 app、release 或其他獨立序列，每條線各自有 pattern、版本模型與 push 設定。</p></div><div class="feature"><b>自動化與工作流護欄</b><p>`--json` 適用於 CI；可選 merge policy 則透過本機 git hook 限制受保護分支的合併來源。</p></div></div></section>
-<section><div class="wrap"><div class="quick"><div><span class="eyebrow">快速開始</span><h2>在現有 repo，三個指令就能上手。</h2><p>Node.js 18+ 與 git 即可。不想安裝全域指令也可將套件加入專案 dev dependency。</p><a class="button secondary" href="README.zh-TW.md">閱讀完整繁中說明</a></div><div class="terminal"><span class="cmd">$ npm install -g @carllee1983/tagsmith</span><br><br><span class="cmd">$ tagsmith list</span><br><span class="cmd">$ tagsmith next</span><br><span class="cmd">$ tagsmith create --push</span></div></div></div></section></main>
-<footer class="footer"><div class="wrap"><span>Tagsmith · Define, inspect, and safely create git tags.</span><span><a href="https://github.com/CarlLee1983/Tagsmith">GitHub</a> · <a href="https://www.npmjs.com/package/@carllee1983/tagsmith">npm</a> · <a href="en/" lang="en">English</a></span></div></footer></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tagsmith 協助維護者檢視、定義並安全預覽 git tag 規格。">
+  <title>Tagsmith — 安全、可預期的 git tag</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/site.js" defer></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <nav class="nav" aria-label="主要導覽">
+        <a class="brand" href="./" aria-label="Tagsmith 首頁">tag<span>smith</span></a>
+        <a class="lang" href="en/" lang="en">English <span aria-hidden="true">→</span></a>
+      </nav>
+
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">Predictable git tag conventions</span>
+          <h1>每次發版，都從<strong>安全、可預期的 tag</strong>開始。</h1>
+          <p class="lead">Tagsmith 幫助 repository maintainer 檢視既有 tag、釐清團隊規格，並在建立前依照本機已知歷史驗證下一個 tag。</p>
+
+          <div class="command-cta" aria-labelledby="try-safely">
+            <p id="try-safely" class="command-label">安全試用</p>
+            <div class="command-row">
+              <code id="try-command">npx @carllee1983/tagsmith list</code>
+              <button class="copy-button" type="button" data-copy-target="#try-command" data-copy-success="已複製" data-copy-fallback="請選取並手動複製指令。">複製指令</button>
+            </div>
+            <p class="prerequisites">在 Git repository 中執行 · 需要 Node.js 18+</p>
+            <p class="command-note">第一次執行可能下載套件；沒有 JavaScript 時，仍可直接選取並複製指令。</p>
+            <p class="copy-status" aria-live="polite"></p>
+          </div>
+
+          <div class="actions">
+            <a class="button secondary" href="README.zh-TW.md">了解完整流程</a>
+          </div>
+          <p class="verification-links">驗證專案：<a href="https://github.com/CarlLee1983/Tagsmith">GitHub</a> · <a href="https://www.npmjs.com/package/@carllee1983/tagsmith">npm</a></p>
+        </div>
+
+        <div class="terminal" aria-label="Tagsmith 指令輸出示意">
+          <p class="terminal-label">示意輸出</p>
+          <span class="dim"># 先檢視 repository 的既有 tag</span><br>
+          <span class="cmd">$ npx @carllee1983/tagsmith list</span><br>
+          <span class="ok">✓ 找到符合規格的 tag</span><br>
+          <span class="dim">ℹ 無設定檔時，使用推斷的 SemVer 規格</span><br><br>
+          <span class="cmd">$ npx @carllee1983/tagsmith next</span><br>
+          <span class="ok">✓ 預覽下一個安全 tag：v1.4.0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <span class="section-label">為什麼需要它</span>
+        <h2>tag 看似小事，卻常在發版時變成風險。</h2>
+        <p class="section-intro">手動命名、混合格式與不清楚的歷史 tag，會讓 CI、release note 和協作失去共同依據。</p>
+        <div class="grid">
+          <article class="card risk-card">
+            <span class="icon coral" aria-hidden="true">!</span>
+            <h3>格式逐漸漂移</h3>
+            <p><code>v1.2.3</code>、<code>release-1.2.3</code>、<code>final</code> 混在一起，之後誰也無法確定哪個才是正式版本。</p>
+          </article>
+          <article class="card review-card">
+            <span class="icon amber" aria-hidden="true">?</span>
+            <h3>版本順序靠猜</h3>
+            <p>補歷史 tag 或平行開發時，容易建立低於既有版本的 tag，破壞自動化流程。</p>
+          </article>
+          <article class="card valid-card">
+            <span class="icon teal" aria-hidden="true">✓</span>
+            <h3>問題太晚浮現</h3>
+            <p>沒有本機檢視與驗證，問題往往要到 CI 或其他人取得 tag 後才發現。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap">
+        <span class="section-label">一條安全路徑</span>
+        <h2>先釐清規格，再決定下一個版本。</h2>
+        <div class="steps">
+          <article class="step">
+            <h3>檢視現況</h3>
+            <p>從 <code>list</code> 開始，依語意排序並標示不合規、無法解析或重複的 tag；Tagsmith 不會自動改寫歷史。</p>
+          </article>
+          <article class="step">
+            <h3>確認意圖</h3>
+            <p>規格清楚的 SemVer 歷史可以繼續；混合、模糊或非 SemVer 的歷史，先用 <code>init</code> 定義團隊規格。</p>
+          </article>
+          <article class="step">
+            <h3>安全預覽</h3>
+            <p>重新檢視後，再用 <code>next</code> 計算下一個版本；這一步不會改動 repository。</p>
+          </article>
+          <article class="step">
+            <h3>稍後再建立</h3>
+            <p>建立 tag 前會依規格與本機已知歷史驗證。預設不會推送；推送到 remote 是另一個明確、由團隊工作流決定的動作。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <span class="section-label">從一條線開始</span>
+        <h2>清楚的規格能隨 release 節奏擴展。</h2>
+        <div class="feature">
+          <b>SemVer、CalVer、build number</b>
+          <p>SemVer 是零設定檢視的預設路徑。定義規格後，也可選擇符合團隊節奏的 CalVer 或遞增 build number。</p>
+        </div>
+        <div class="feature">
+          <b>單一 tag line，必要時再擴展</b>
+          <p>先用一條 tag line 建立共同規則；只有 app、release 等獨立序列真的需要分開時，才加入多條 tag line。</p>
+        </div>
+        <div class="feature">
+          <b>自動化讀取結果</b>
+          <p><code>--json</code> 讓 CI 與 script 讀取 Tagsmith 對規格的評估結果；周邊自動化仍負責後續動作。</p>
+        </div>
+        <div class="feature">
+          <b>選用的本機工作流護欄</b>
+          <p>merge policy 可在本機 git workflow 中協助維護 repository 慣例；它不是 remote branch protection 或伺服器端政策。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="quick">
+          <div>
+            <span class="eyebrow">明確採用</span>
+            <h2>試用後，把規格交給團隊共同維護。</h2>
+            <p>當檢視結果符合你的意圖，用 <code>tagsmith init</code> 建立並提交 <code>.tagsmith.json</code>。這份設定檔讓規格成為團隊共識，而不只是個人的習慣。</p>
+            <a class="button light" href="README.zh-TW.md">閱讀完整工作流程</a>
+          </div>
+          <div class="terminal compact" aria-label="採用 Tagsmith 的指令示意">
+            <p class="terminal-label">採用步驟</p>
+            <span class="cmd">$ npx @carllee1983/tagsmith init</span><br>
+            <span class="ok">✓ 建立 .tagsmith.json</span><br><br>
+            <span class="dim"># 提交團隊的明確規格</span><br>
+            <span class="cmd">$ git add .tagsmith.json</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Tagsmith · Define, inspect, and safely create git tags.</span>
+      <span><a href="https://github.com/CarlLee1983/Tagsmith">GitHub</a> · <a href="https://www.npmjs.com/package/@carllee1983/tagsmith">npm</a> · <a href="en/" lang="en">English</a></span>
+    </div>
+  </footer>
+</body>
+</html>

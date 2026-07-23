@@ -4,7 +4,8 @@
 
 Publish a lightweight, shareable Tagsmith introduction site on GitHub Pages. It
 must give Traditional Chinese and English audiences an equally clear path from
-the problem of inconsistent git tags to installation and project resources.
+the problem of inconsistent git tags to a safe first evaluation and the full
+adoption workflow.
 
 ## Scope
 
@@ -16,37 +17,55 @@ the problem of inconsistent git tags to installation and project resources.
 
 The existing Markdown documentation remains the detailed reference material; the
 landing pages are a concise product introduction rather than a duplicate CLI
-manual.
+manual or configuration reference.
 
 ## Audience and message
 
-The page serves maintainers and release engineers who need predictable git tags
-across local development, CI, and release workflows. The core promise is:
+The page serves repository maintainers and release owners who need predictable
+git tags across local development, CI, and release workflows. The core promise
+is:
 
-> Define the convention once, inspect the repository, and create the next git
-> tag safely.
+> Inspect the repository, make the convention explicit, and create predictable
+> git tags safely.
 
-The Chinese page uses the same message in Traditional Chinese. Both versions
-emphasize concrete safeguards: configurable version models, tag inspection,
-strict validation before creation, zero-configuration adoption, independent tag
-lines, and optional local merge-policy hooks.
+“Safe” is deliberately local and concrete: Tagsmith validates a proposed tag
+against the configured convention and known local tag history before creation.
+It does not promise remote enforcement, concurrent-maintainer coordination, or
+automatic correction of ambiguous history. The Chinese page carries the same
+product story and user journey in natural Traditional Chinese.
+
+Both versions emphasize inspection before action, explicit configuration for
+ambiguous or non-SemVer history, strict validation before creation, later
+remote publication as a separate choice, configurable version models, advanced
+independent tag lines, JSON output for surrounding automation, and optional
+local merge-policy hooks.
 
 ## Information architecture
 
 Each language page has the same sequence and calls to action:
 
-1. **Hero** — concise promise, product positioning, install command, and links
-   to npm and GitHub.
+1. **Hero** — concise promise, the copyable safe-evaluation command
+   `npx @carllee1983/tagsmith list`, prerequisites (Git repository and Node.js
+   18+), full-workflow link, and GitHub/npm verification links. The command
+   remains visible and manually copyable without JavaScript.
 2. **Problem** — inconsistent formats, unsafe manual version selection, and
    unclear repository history.
-3. **How it works** — define or infer a convention, inspect tags, preview the
-   next version, then validate and create it.
+3. **How it works** — inspect first; preview when the convention is clear; for
+   ambiguous history configure, inspect again, then preview. Explain validated
+   creation later in the story and keep remote publication a separate,
+   default-off action.
 4. **Core capabilities** — SemVer/CalVer/build models, zero-configuration mode,
-   multiple tag lines, JSON output for automation, and merge-policy guardrails.
-5. **Quick start** — a short command sequence that works in an existing
-   SemVer-style repository.
+   advanced multiple tag lines, JSON output for automation, and optional local
+   merge-policy guardrails. Zero-configuration must be qualified as a
+   SemVer-style discovery path, not universal convention inference.
+5. **Adoption** — explain `tagsmith init` and committing the generated
+   `.tagsmith.json`; direct configuration shape and examples remain in the
+   Markdown documentation.
 6. **Trust and call to action** — link to the GitHub repository, npm package,
    full documentation, and the other language version.
+
+Hero output is clearly labelled illustrative, uses only real safe-to-copy
+commands, and never presents tag creation as the first action.
 
 The two pages use stable dedicated URLs rather than client-side translation:
 
@@ -61,14 +80,20 @@ This makes either language page directly shareable and indexable.
 
 The visual direction follows the approachable, single-column narrative of the
 `loop-apidoc` introduction page without copying its branding. Tagsmith uses a
-release-oriented palette: deep indigo for the primary action, teal for valid
-states, amber for review, and coral for anomalies. The page uses responsive CSS
-grids, semantic HTML, inline SVG icons, and CSS-only decorative graphics.
+semantic release-oriented palette: deep indigo for actions, teal for valid
+states, amber for review, and coral for risks or anomalies. The page uses
+responsive CSS grids and semantic HTML.
 
-There are no generated image assets. This keeps the Pages artifact small and
-reproducible while retaining a distinct product presentation. Shared CSS and
-small JavaScript helpers may live under `docs/assets/` if they reduce duplicated
-language-page markup; content remains explicit in each language page.
+There are no generated image assets, analytics, trackers, external font
+requests, embedded verification widgets, frameworks, or third-party runtime
+dependencies. This keeps the Pages artifact private, small, reproducible, and
+self-contained. Shared CSS and a small dependency-free JavaScript helper may
+live under `docs/assets/`; the helper only improves command copying and must
+fall back gracefully when JavaScript or clipboard access is unavailable.
+
+Both language editions have equivalent claims, calls to action, and completeness
+with independently natural wording. Every action is keyboard-operable, clearly
+labelled, visibly focusable, and understandable without color alone.
 
 ## Deployment
 
@@ -86,17 +111,21 @@ succeeds, the expected public address is:
 
 ## Validation
 
-- Check both page files for valid local links, including the reciprocal language
-  switch and relative asset paths.
-- Inspect the generated pages locally in a browser or static HTTP server at
-  desktop and narrow mobile widths.
-- Confirm the Pages workflow syntax and that it uploads `./docs`.
-- After push, inspect the GitHub Actions deployment result and open both public
-  URLs. A public deployment is complete only when the root and `/en/` pages load
-  without missing assets or broken links.
+Before merge, validate correctness against the CLI and documentation, bilingual
+parity, keyboard and focus behavior, no-JavaScript use, clipboard-denied
+fallback, and responsive layout at desktop and narrow mobile widths. Check both
+page files for valid local links, including the reciprocal language switch and
+relative asset paths, and confirm the Pages workflow uploads `./docs`.
+
+After deployment, smoke-test availability, asset integrity, navigation, primary
+routes, and external GitHub/npm verification links. A public deployment is
+complete only when the root and `/en/` pages load without missing assets or
+broken links.
 
 ## Non-goals
 
 - Replacing the README or the detailed Markdown documentation.
-- Adding analytics, a CMS, a JavaScript framework, or a custom domain.
-- Changing Tagsmith CLI behavior, package metadata, or release policy.
+- Adding analytics, a CMS, a JavaScript framework, a custom domain, external
+  runtime dependencies, or visitor instrumentation.
+- Changing Tagsmith CLI behavior, package metadata, release behavior, or
+  repository workflow policy.
