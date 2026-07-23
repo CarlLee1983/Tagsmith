@@ -236,7 +236,7 @@ remote。`tagsmith create --enforce-policy` 會在任何 Git 變更前，以同�
 命中的 rule 生效。rule 可用精確的 `type`、`scope`、`breaking` 篩選，並設定一個 `release`
 等級或 `ignore: true`。設定 custom policy 後，未命中的 commit 會被忽略。
 
-```json tagsmith-config
+```json
 {
   "commitPolicy": {
     "rules": [

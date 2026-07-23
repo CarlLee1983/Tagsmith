@@ -297,7 +297,7 @@ matching rule wins; a rule can filter exact `type`, `scope`, and `breaking`
 status, then set one `release` level or `ignore: true`. Unmatched commits are
 ignored when a custom policy is configured.
 
-```json tagsmith-config
+```json
 {
   "commitPolicy": {
     "rules": [
