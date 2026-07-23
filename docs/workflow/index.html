@@ -49,7 +49,7 @@
             <div class="route-copy">
               <span class="section-label">檢視</span>
               <h2>先讀本機已知的 tag 歷史。</h2>
-              <p>從 <code>list</code> 開始。Tagsmith 會依語意排序，並標示不合規、無法解析或重複的 tag；它不會自動修正任何歷史。</p>
+              <p>從 <code>list</code> 開始。Tagsmith 會依語意排序，並標示不合規、無法解析或重複的 tag。發版前可再用 <code>audit</code> 檢查完整歷史、已設定的本機護欄，以及歷史 tag 對應的產物版本；它不會自動修正任何歷史。</p>
               <div class="command-cta workflow-command" aria-labelledby="list-command-label">
                 <p id="list-command-label" class="command-label">安全試用</p>
                 <div class="command-row">
@@ -104,7 +104,7 @@
                   <code id="next-command">npx @carllee1983/tagsmith next</code>
                   <button class="copy-button" type="button" data-copy-target="#next-command" data-copy-success="已複製" data-copy-fallback="請選取並手動複製指令。">複製指令</button>
                 </div>
-                <p class="command-note">需要 minor 或 major 時，可在這一步與建立時一併加上相同的 <code>--level</code>。</p>
+                <p class="command-note">需要 minor 或 major 時，可在這一步與建立時一併加上相同的 <code>--level</code>。若採用 commit policy，使用 <code>--from-commits</code> 可讓建議列出命中的規則。</p>
                 <p class="copy-status" aria-live="polite"></p>
               </div>
             </div>
@@ -115,7 +115,7 @@
             <div class="route-copy">
               <span class="section-label">建立</span>
               <h2>預覽符合意圖後，先確認 <code>push: false</code>，才在本機建立。</h2>
-              <p>建立前，Tagsmith 會依明確規格與本機已知歷史再次驗證。若不符合，會停止而不是自行選擇解法。</p>
+              <p>建立前，Tagsmith 會依明確規格與本機已知歷史再次驗證。若不符合，會停止而不是自行選擇解法。若啟用產物版本護欄，<code>--enforce-policy</code> 也會在目標 commit 的 <code>package.json</code> 缺失或版本不一致時停止建立。</p>
               <p class="creation-condition">新設定的預設是 <code>push: false</code>。<code>create</code> 會遵從選定 tag line 的設定：值為 <code>false</code> 時只建立本機 tag；值為 <code>true</code> 時，這個指令會發布它。</p>
               <div class="command-cta workflow-command" aria-labelledby="create-command-label">
                 <p id="create-command-label" class="command-label">確認 push 後再建立</p>
@@ -152,7 +152,7 @@
         <article>
           <span class="section-label">需要更多設定？</span>
           <h2>從一條 tag line 開始。</h2>
-          <p>SemVer 是零設定評估的預設路徑。CalVer、build number、多條 tag line 與選用的本機 merge policy，都在有明確需求後再加入。</p>
+          <p>SemVer 是零設定評估的預設路徑。CalVer、build number、多條 tag line、產物版本檢查、commit policy 與選用的本機護欄，都在有明確需求後再加入。</p>
           <a class="button secondary" href="../README.zh-TW.md">閱讀完整設定參考 <span aria-hidden="true">→</span></a>
         </article>
       </div>

@@ -49,7 +49,7 @@
             <div class="route-copy">
               <span class="section-label">Inspect</span>
               <h2>Start with the local tag history you know.</h2>
-              <p>Begin with <code>list</code>. Tagsmith orders tags semantically and flags mismatches, unparseable versions, and duplicates. It never repairs history automatically.</p>
+              <p>Begin with <code>list</code>. Tagsmith orders tags semantically and flags mismatches, unparseable versions, and duplicates. Before a release, use <code>audit</code> to check the complete history, configured local guardrails, and the artifact versions stored with historical tags. It never repairs history automatically.</p>
               <div class="command-cta workflow-command" aria-labelledby="list-command-label">
                 <p id="list-command-label" class="command-label">Try it safely</p>
                 <div class="command-row">
@@ -104,7 +104,7 @@
                   <code id="next-command">npx @carllee1983/tagsmith next</code>
                   <button class="copy-button" type="button" data-copy-target="#next-command" data-copy-success="Copied" data-copy-fallback="Select and copy the command manually.">Copy command</button>
                 </div>
-                <p class="command-note">For a minor or major release, add the same <code>--level</code> here and when creating.</p>
+                <p class="command-note">For a minor or major release, add the same <code>--level</code> here and when creating. With a commit policy, <code>--from-commits</code> shows the matching rule behind the recommendation.</p>
                 <p class="copy-status" aria-live="polite"></p>
               </div>
             </div>
@@ -115,7 +115,7 @@
             <div class="route-copy">
               <span class="section-label">Create</span>
               <h2>After the preview, confirm <code>push: false</code> before creating locally.</h2>
-              <p>Before creation, Tagsmith validates again against the explicit convention and known local history. If the proposal does not fit, it stops instead of selecting a resolution for you.</p>
+              <p>Before creation, Tagsmith validates again against the explicit convention and known local history. If the proposal does not fit, it stops instead of selecting a resolution for you. When the artifact-version guardrail is enabled, <code>--enforce-policy</code> also stops creation if the target commit’s <code>package.json</code> is missing or its version does not match.</p>
               <p class="creation-condition">New configuration defaults to <code>push: false</code>. <code>create</code> honours the selected tag line's setting: when it is <code>false</code>, the tag stays local; when it is <code>true</code>, this command publishes it.</p>
               <div class="command-cta workflow-command" aria-labelledby="create-command-label">
                 <p id="create-command-label" class="command-label">Create after checking push</p>
@@ -152,7 +152,7 @@
         <article>
           <span class="section-label">Need more configuration?</span>
           <h2>Start with one tag line.</h2>
-          <p>SemVer is the default evaluation path. Add CalVer, build numbers, multiple tag lines, or an optional local merge policy only after the need is clear.</p>
+          <p>SemVer is the default evaluation path. Add CalVer, build numbers, multiple tag lines, artifact-version checks, commit policy, or optional local guardrails only after the need is clear.</p>
           <a class="button secondary" href="https://github.com/CarlLee1983/Tagsmith#readme">Read the configuration reference <span aria-hidden="true">→</span></a>
         </article>
       </div>
