@@ -19,6 +19,7 @@ import { planNext } from "../src/core/plan.js";
 import { selectLine, assignTagsToLines } from "../src/core/lines.js";
 import { runNext } from "../src/cli/next.js";
 import { runCreate } from "../src/cli/create.js";
+import { runAudit } from "../src/cli/audit.js";
 import type { TagsmithConfig } from "../src/types.js";
 
 /** Capture everything written to stdout/stderr during `fn`. */
@@ -104,6 +105,45 @@ describe("git integration", () => {
     } finally {
       await rm(remote, { recursive: true, force: true });
       await rm(peer, { recursive: true, force: true });
+    }
+  });
+
+  it("records an explicitly fetched remote in the release-readiness audit", async () => {
+    const remote = await mkdtemp(path.join(tmpdir(), "tagsmith-audit-remote-"));
+    try {
+      execFileSync("git", ["init", "--bare", "-q", remote]);
+      execFileSync("git", ["remote", "add", "origin", remote], { cwd: dir });
+      execFileSync("git", ["push", "-q", "-u", "origin", "HEAD"], { cwd: dir });
+      await writeConfig(dir, {
+        lines: [
+          {
+            name: "default",
+            pattern: "v{version}",
+            model: { type: "semver" },
+            initialVersion: "0.1.0",
+            push: false,
+          },
+        ],
+        default: "default",
+        releasePolicy: {
+          requireCleanWorktree: false,
+          requireAnnotatedTag: false,
+          requireHeadTag: false,
+          signature: "optional",
+        },
+      });
+
+      const result = await capture(() => runAudit(dir, { fetch: true, json: true }));
+      const json = JSON.parse(result.stdout);
+
+      expect(result.code).toBe(0);
+      expect(json.data.remote).toEqual({ checked: true, name: "origin" });
+      expect(json.data.releaseReadiness.checks).toContainEqual(expect.objectContaining({
+        code: "release-remote",
+        status: "pass",
+      }));
+    } finally {
+      await rm(remote, { recursive: true, force: true });
     }
   });
 

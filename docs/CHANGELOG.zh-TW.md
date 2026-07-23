@@ -7,6 +7,22 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-23
+
+### 新增
+
+- 選配 `releasePolicy`：可限制可發版分支、乾淨 worktree、annotated tag、`HEAD` target
+  與由 Git 管理的 tag 簽章。
+- `audit --fetch [--remote <name>]`、PASS / WARN / FAIL release-readiness
+  結果，以及 JSON envelope 內穩定的 `release-*` diagnostics。
+- `create --enforce-policy`、`--target <ref>`、`--sign`，提供明確且可在本機驗證的
+  發版 preflight。
+
+### 變更
+
+- `create` 在變更 Git state 前重用 audit 的 pure release-readiness evaluator；policy
+  維持 opt-in，既有 create 流程不受影響。
+
 ## [0.5.0] - 2026-07-23
 
 ### 新增
@@ -123,7 +139,8 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.0...v0.3.1

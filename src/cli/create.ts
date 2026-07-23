@@ -6,13 +6,24 @@ import {
   assertUnambiguousLineHistory,
   selectLine,
 } from "../core/lines.js";
-import { createTag, ensureRepo, fetchTags, listTags, pushTag } from "../git/git.js";
+import {
+  createTag,
+  ensureRepo,
+  fetchTags,
+  listTags,
+  pushTag,
+  revParseCommit,
+} from "../git/git.js";
 import { color, info, printError, success, warn } from "./ui.js";
 import { printNextStepsAfterCreate } from "./guidance.js";
 import { requireWorkspaceChanges } from "./workspace.js";
 import { resolveReleaseInput } from "./release-input.js";
 import { resolveConfig } from "./resolve-config.js";
 import { printImplicitConfigNotice } from "./implicit.js";
+import {
+  inspectReleaseReadiness,
+  printReleaseReadiness,
+} from "./release-readiness.js";
 
 export interface CreateFlags {
   level?: string;
@@ -26,6 +37,9 @@ export interface CreateFlags {
   remote?: string;
   fromCommits?: boolean;
   requireChanges?: boolean;
+  enforcePolicy?: boolean;
+  target?: string;
+  sign?: boolean;
 }
 
 export async function runCreate(cwd: string, flags: CreateFlags): Promise<number> {
@@ -36,6 +50,9 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
     const line = selectLine(config, flags.tag);
     const model = createModel(line.model);
     const pattern = compilePattern(line.pattern);
+    if (flags.sign && flags.message === undefined) {
+      throw new Error("--sign requires --message <text> so Git does not open an editor.");
+    }
     const willPush = flags.push ?? line.push;
     // A dry-run remains local by default; callers can still ask for an exact
     // remote preview with --fetch.
@@ -91,6 +108,20 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
       return 1;
     }
 
+    const targetRef = flags.target ?? "HEAD";
+    const target = await revParseCommit({ cwd }, targetRef);
+
+    if (flags.enforcePolicy) {
+      const readiness = await inspectReleaseReadiness(cwd, config.releasePolicy, {
+        tag: tagName,
+        target,
+        annotated: flags.message !== undefined || flags.sign === true,
+        signed: flags.sign === true,
+      });
+      printReleaseReadiness(readiness);
+      if (!readiness.ok) return 1;
+    }
+
     if (flags.requireChanges) {
       const latest = planNext(line, model, lineTags).analysis.latest?.raw ?? null;
       await requireWorkspaceChanges(cwd, line, latest);
@@ -99,12 +130,19 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
     if (flags.dryRun) {
       printImplicitConfigNotice(resolved);
       warn(`[dry-run] would create ${color.cyan(tagName)}${flags.message ? " (annotated)" : ""}`);
+      if (flags.target !== undefined) warn(`[dry-run] target: ${targetRef}`);
       if (flags.push ?? line.push) warn(`[dry-run] would push ${tagName}`);
       return 0;
     }
 
     printImplicitConfigNotice(resolved);
-    await createTag({ cwd, name: tagName, message: flags.message });
+    await createTag({
+      cwd,
+      name: tagName,
+      message: flags.message,
+      ref: flags.target,
+      sign: flags.sign,
+    });
     success(`Created tag ${color.cyan(tagName)}`);
 
     if (willPush) {

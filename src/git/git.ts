@@ -133,15 +133,19 @@ export interface CreateTagOptions extends GitOptions {
   message?: string;
   /** Target ref/commit; defaults to HEAD. */
   ref?: string;
+  /** Ask Git to create a signed (and therefore annotated) tag. */
+  sign?: boolean;
 }
 
 export async function createTag(opts: CreateTagOptions): Promise<void> {
   const args = ["tag"];
-  if (opts.message !== undefined) {
-    args.push("-a", opts.name, "-m", opts.message);
-  } else {
-    args.push(opts.name);
+  if (opts.sign) {
+    args.push("-s");
+  } else if (opts.message !== undefined) {
+    args.push("-a");
   }
+  if (opts.message !== undefined) args.push("-m", opts.message);
+  args.push(opts.name);
   if (opts.ref !== undefined) args.push(opts.ref);
   await git(args, opts.cwd);
 }
@@ -177,6 +181,15 @@ export async function currentBranch(opts: GitOptions): Promise<string> {
   return stdout.trim();
 }
 
+/** True only when no staged, unstaged, or untracked worktree changes exist. */
+export async function isWorktreeClean(opts: GitOptions): Promise<boolean> {
+  const { stdout } = await tryGit(
+    ["status", "--porcelain", "--untracked-files=all"],
+    opts.cwd,
+  );
+  return stdout.trim() === "";
+}
+
 /** Resolve a ref to a full SHA, or null when it does not exist. */
 export async function revParseVerify(
   opts: GitOptions,
@@ -189,6 +202,11 @@ export async function revParseVerify(
 /** Resolve a ref to a full SHA (throws via GitError when invalid). */
 export async function revParse(opts: GitOptions, ref: string): Promise<string> {
   return (await git(["rev-parse", ref], opts.cwd)).trim();
+}
+
+/** Resolve a ref to the commit it ultimately denotes, rejecting non-commits. */
+export async function revParseCommit(opts: GitOptions, ref: string): Promise<string> {
+  return revParse(opts, `${ref}^{commit}`);
 }
 
 /** Read the MERGE_MSG file contents, or null when it is absent. */

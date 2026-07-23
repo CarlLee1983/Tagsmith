@@ -110,8 +110,10 @@ program
 
 program
   .command("audit")
-  .description("Audit all repository tags and tag-line assignment safety")
+  .description("Audit tag history, assignment safety, and release readiness")
   .option("--json", "output versioned JSON")
+  .option("--fetch", "fetch tags from the remote before auditing")
+  .option("--remote <name>", "remote used by --fetch (default: origin)")
   .action(async (opts) => {
     process.exitCode = await runAudit(process.cwd(), opts);
   });
@@ -133,6 +135,9 @@ const createCommand = program
   .option("--remote <name>", "remote used by --fetch and --push (default: origin)")
   .option("--from-commits", "derive a semver bump from Conventional Commits")
   .option("--require-changes", "require changes in the selected line's workspace")
+  .option("--enforce-policy", "enforce the optional releasePolicy before creating")
+  .option("--target <ref>", "tag target ref (default: HEAD)")
+  .option("--sign", "create a signed annotated tag (requires --message)")
   .option("--dry-run", "preview without creating")
   .option("--allow-out-of-order", "permit a version not greater than latest")
   .option(
@@ -151,6 +156,8 @@ Examples:
   $ tagsmith create -l minor -m "..."      Create an annotated minor tag
   $ tagsmith create --set-version 2.0.0    Create an explicit version
   $ tagsmith create --dry-run              Preview without creating
+  $ tagsmith create --enforce-policy -m "Release 1.2.0"
+                                            Enforce releasePolicy before creating
   $ tagsmith create --tag release          Create the next tag on a named tag line
 `,
 );

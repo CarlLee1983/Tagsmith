@@ -32,6 +32,34 @@ describe("parseConfig (legacy flat)", () => {
     expect(cfg.lines[0].push).toBe(false);
   });
 
+  it("normalises an opt-in releasePolicy with safe defaults", () => {
+    const cfg = parseConfig({
+      pattern: "v{version}",
+      model: { type: "semver" },
+      initialVersion: "0.1.0",
+      releasePolicy: { allowedBranches: ["main", "release/*"] },
+    });
+
+    expect(cfg.releasePolicy).toEqual({
+      allowedBranches: ["main", "release/*"],
+      requireCleanWorktree: false,
+      requireAnnotatedTag: false,
+      requireHeadTag: false,
+      signature: "optional",
+    });
+  });
+
+  it("rejects an invalid releasePolicy before commands can ignore it", () => {
+    expect(() =>
+      parseConfig({
+        pattern: "v{version}",
+        model: { type: "semver" },
+        initialVersion: "0.1.0",
+        releasePolicy: { signature: "sometimes" },
+      }),
+    ).toThrow(ConfigError);
+  });
+
   it("rejects a pattern without placeholder", () => {
     expect(() =>
       parseConfig({

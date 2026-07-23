@@ -59,11 +59,27 @@ export interface TagLine {
   workspace?: string;
 }
 
+/** Optional local guardrails that decide whether a candidate tag may be created. */
+export interface ReleasePolicy {
+  /** Branch names (with * and ? glob support) that may create a release. */
+  allowedBranches?: string[];
+  /** Reject a candidate while any staged, unstaged, or untracked file exists. */
+  requireCleanWorktree: boolean;
+  /** Require the candidate to be created as an annotated tag. */
+  requireAnnotatedTag: boolean;
+  /** Require the candidate tag's resolved commit to equal HEAD. */
+  requireHeadTag: boolean;
+  /** Require Git to create a cryptographically signed tag. */
+  signature: "optional" | "required";
+}
+
 /** 內部正規化後的設定:一律為多線結構。 */
 export interface TagsmithConfig {
   lines: TagLine[];
   /** 預設線名,正規化後一定指向有效的 line.name。 */
   default: string;
+  /** Optional release-time guardrails; absent means current behaviour is unchanged. */
+  releasePolicy?: ReleasePolicy;
 }
 
 /** A tag parsed against the configured pattern + model. */

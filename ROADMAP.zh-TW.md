@@ -82,6 +82,10 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 
 ## 0.6 — Release Readiness
 
+> 實作狀態：完成，待發行 `0.6.0`。設計與實作紀錄見
+> [`2026-07-23-release-readiness-design.md`](docs/history/designs/2026-07-23-release-readiness-design.md)
+> 與 [`2026-07-23-release-readiness.md`](docs/history/plans/2026-07-23-release-readiness.md)。
+
 ### 目標
 
 讓 maintainer 能把「可建立 tag」以外的發版前置條件寫成可審核的本地規則。

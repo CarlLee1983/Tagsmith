@@ -8,6 +8,22 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-23
+
+### Added
+
+- Optional `releasePolicy` guardrails for allowed branches, clean worktrees,
+  annotated tags, `HEAD` tag targets, and Git-managed tag signatures.
+- `audit --fetch [--remote <name>]` plus pass/warn/fail release-readiness
+  checks and stable `release-*` diagnostics in its JSON envelope.
+- `create --enforce-policy`, `--target <ref>`, and `--sign` for an explicit,
+  locally verifiable release preflight.
+
+### Changed
+
+- `create` reuses audit's pure release-readiness evaluator before it changes
+  Git state; policy remains opt-in, so existing create flows are unchanged.
+
 ## [0.5.0] - 2026-07-23
 
 ### Added
@@ -100,7 +116,8 @@ to [Semantic Versioning](https://semver.org/).
 - A three-layer core/git/CLI architecture and unit, integration, and CLI E2E
   test coverage.
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.0...v0.3.1

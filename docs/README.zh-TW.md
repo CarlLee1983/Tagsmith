@@ -13,6 +13,7 @@
 - 🏷️ **規格化** — 用 `.tagsmith.json` 定義全專案的 tag 樣式與版本模型（可選）
 - 🔍 **可檢視** — 依語義排序列出 tag，標示格式 / 順序 / 重複異常
 - 🛡️ **防呆** — 建立前驗證格式、版本可解析、嚴格遞增、tag 不重複
+- ✅ **發版就緒檢查** — 可選擇要求正確分支、乾淨 worktree、annotated / signed tag 與 `HEAD` target
 - 🚀 **零設定** — 無設定檔時自動以 semver 推斷 pattern，讀 repo 既有 tag 即可用
 - 🧩 **可擴充** — 版本模型走介面抽象，新增不動核心邏輯
 - 🚧 **合併護欄** — 以 `mergePolicy` 限制受保護分支的合併來源（白 / 黑名單），由 git hook 自動把關
@@ -116,6 +117,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 | 欄位 | 說明 |
 |------|------|
 | `default` | 預設操作線名；省略時取 `tags[0].name` |
+| `releasePolicy` | 可選的本機發版前置條件；只有 `create --enforce-policy` 才強制執行 |
 
 ### 舊格式（仍相容）
 
@@ -162,6 +164,36 @@ tagsmith create --tag api --require-changes --push
 ```
 
 `workspace` 必須是 repo 內的相對路徑；未設定時，既有單一 repo 的設定與行為完全不變。
+
+### Release readiness
+
+頂層選配 `releasePolicy` 可把本機發版前置條件提交進 repository。未設定時完全關閉；
+只有**同時**設定 policy 與傳入 `--enforce-policy`，才會改變既有 `create` 行為。
+
+```json tagsmith-config
+{
+  "pattern": "v{version}",
+  "model": { "type": "semver" },
+  "initialVersion": "0.1.0",
+  "releasePolicy": {
+    "allowedBranches": ["main", "release/*"],
+    "requireCleanWorktree": true,
+    "requireAnnotatedTag": true,
+    "requireHeadTag": true,
+    "signature": "required"
+  }
+}
+```
+
+- `allowedBranches` 支援 `*` 與 `?` glob；detached `HEAD` 不符合規則。
+- `requireCleanWorktree` 包含 staged、unstaged 與 untracked 檔案。
+- `requireAnnotatedTag` 需傳入 `--message`；`signature: "required"` 需傳入
+  `--sign --message "…"`，並由已設定的 Git signing key 實際簽章。
+- `requireHeadTag` 只檢查**這次候選 tag**的 target，不追溯舊 tag；若刻意要選其他
+  commit，可用 `--target <ref>`，但 enforce 時會依 policy 拒絕或允許。
+
+`tagsmith audit` 顯示目前 branch / worktree 的 readiness；沒有 `--fetch` 時絕不存取
+remote。`tagsmith create --enforce-policy` 會在任何 Git 變更前，以同一組規則檢查具體候選 tag。
 
 ### 三種版本模型
 
@@ -263,9 +295,15 @@ tagsmith create --tag api --require-changes --push
 `orphan-tag` 是 warning；`unparseable-version`、`duplicate-version` 與
 `ambiguous-assignment` 是 error，出現 error 時指令會以 exit 1 結束。
 
+設定 `releasePolicy` 時，audit 也會以 `PASS` / `WARN` / `FAIL` 顯示目前 branch 與
+worktree 的 readiness。annotation、signature、target 是候選 tag 的條件，因此只有
+`create --enforce-policy` 會判定；JSON 請使用穩定的 `release-*` diagnostic code。
+預設不查 remote；必須明確傳入 `--fetch` 才會同步並在輸出標記 remote 已檢查。
+
 ```bash
 tagsmith audit
 tagsmith audit --json
+tagsmith audit --fetch --remote origin
 ```
 
 ### `tagsmith check`
@@ -338,6 +376,9 @@ tagsmith audit --json
 | `--remote <name>` | `--fetch` 與 `--push` 使用的 remote（預設 `origin`） |
 | `--from-commits` | 僅限 SemVer；依 Conventional Commits 決定遞增等級，不能與 `--level` / `--set-version` 合用 |
 | `--require-changes` | 要求指定線的 `workspace` 自最新 tag 後有已提交變更 |
+| `--enforce-policy` | 在建立前強制頂層 `releasePolicy`；未設定 policy 時維持既有行為 |
+| `--target <ref>` | tag target（預設 `HEAD`） |
+| `--sign` | 建立 signed annotated tag；必須同時傳入 `--message` |
 | `--dry-run` | 只預覽，不建立 |
 | `--allow-out-of-order` | 允許版本不大於現有最大值 |
 | `-t, --tag <name>` | 操作指定線（預設：設定檔的 `default` 線） |
@@ -350,6 +391,9 @@ tagsmith create --push
 
 # 發佈帶 annotation 的 minor release
 tagsmith create -l minor -m "新增登入 API"
+
+# 強制執行已提交的發版政策
+tagsmith create --enforce-policy -m "Release 1.2.0"
 
 # CI 中取得下一個 tag 字串
 NEXT=$(tagsmith next --json | jq -r .data.tag)

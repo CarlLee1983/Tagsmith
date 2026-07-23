@@ -413,6 +413,30 @@ describe("command runners (in-process)", () => {
       ]));
     });
 
+    it("reports configured release readiness separately from tag-history findings", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          releasePolicy: { allowedBranches: ["release/*"] },
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runAudit(dir, { json: true }));
+      const json = jsonOutput(r.out);
+
+      expect(r.code).toBe(1);
+      expect(json.data.releaseReadiness).toMatchObject({ enabled: true, ok: false });
+      expect(json.diagnostics).toContainEqual(expect.objectContaining({
+        code: "release-branch-not-allowed",
+        severity: "error",
+      }));
+      expect(json.data.remote).toEqual({ checked: false });
+    });
+
     it("keeps JSON output parseable when auditing outside a repository", async () => {
       const outside = await mkdtemp(path.join(tmpdir(), "tagsmith-no-repo-"));
       try {
@@ -928,6 +952,96 @@ describe("command runners (in-process)", () => {
       expect(r.code).toBe(1);
       expect(r.err).toMatch(/ambiguous tag assignment/);
       expect(execFileSync("git", ["tag", "-l"], { cwd: dir, encoding: "utf8" })).toBe("v1.0.0\n");
+    });
+
+    it("enforces an annotated candidate only when --enforce-policy is requested", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          releasePolicy: { requireAnnotatedTag: true },
+        }),
+        "utf8",
+      );
+
+      const unguarded = await capture(() => runCreate(dir, { dryRun: true }));
+      expect(unguarded.code).toBe(0);
+
+      const guarded = await capture(() =>
+        runCreate(dir, { dryRun: true, enforcePolicy: true }),
+      );
+      expect(guarded.code).toBe(1);
+      expect(guarded.out).toMatch(/FAIL.*must be annotated/);
+
+      const ready = await capture(() =>
+        runCreate(dir, {
+          dryRun: true,
+          enforcePolicy: true,
+          message: "Release 0.1.0",
+        }),
+      );
+      expect(ready.code).toBe(0);
+      expect(ready.out).toMatch(/PASS.*will be annotated/);
+    });
+
+    it("blocks a dirty worktree under an enforced release policy", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          releasePolicy: { requireCleanWorktree: true },
+        }),
+        "utf8",
+      );
+      execFileSync("git", ["add", ".tagsmith.json"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "chore: configure release policy"], { cwd: dir });
+      await writeFile(path.join(dir, "uncommitted.txt"), "dirty\n", "utf8");
+
+      const r = await capture(() =>
+        runCreate(dir, { dryRun: true, enforcePolicy: true }),
+      );
+
+      expect(r.code).toBe(1);
+      expect(r.out).toMatch(/FAIL.*Worktree is dirty/);
+      expect(execFileSync("git", ["tag", "-l"], { cwd: dir, encoding: "utf8" })).toBe("");
+    });
+
+    it("blocks an explicitly non-HEAD target under an enforced release policy", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          releasePolicy: { requireHeadTag: true },
+        }),
+        "utf8",
+      );
+      execFileSync("git", ["add", ".tagsmith.json"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "chore: configure release policy"], { cwd: dir });
+      execFileSync("git", ["commit", "--allow-empty", "-q", "-m", "feat: prepare release"], { cwd: dir });
+
+      const r = await capture(() =>
+        runCreate(dir, {
+          dryRun: true,
+          enforcePolicy: true,
+          target: "HEAD~1",
+        }),
+      );
+
+      expect(r.code).toBe(1);
+      expect(r.out).toMatch(/FAIL.*other than HEAD/);
+    });
+
+    it("does not let --sign open an editor without an explicit message", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() => runCreate(dir, { sign: true }));
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/--sign requires --message/);
     });
   });
 

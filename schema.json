@@ -20,7 +20,8 @@
           "type": "string",
           "description": "Default tag-line name; defaults to the first line."
         },
-        "mergePolicy": { "$ref": "#/definitions/mergePolicy" }
+        "mergePolicy": { "$ref": "#/definitions/mergePolicy" },
+        "releasePolicy": { "$ref": "#/definitions/releasePolicy" }
       }
     },
     {
@@ -49,7 +50,8 @@
           ],
           "description": "Repository-relative workspace path for --require-changes."
         },
-        "mergePolicy": { "$ref": "#/definitions/mergePolicy" }
+        "mergePolicy": { "$ref": "#/definitions/mergePolicy" },
+        "releasePolicy": { "$ref": "#/definitions/releasePolicy" }
       }
     }
   ],
@@ -156,6 +158,39 @@
           "enum": ["block", "allow"],
           "default": "block",
           "description": "Behaviour when the merge source branch cannot be resolved."
+        }
+      }
+    },
+    "releasePolicy": {
+      "type": "object",
+      "description": "Optional local release readiness guardrails. They are enforced only by `tagsmith create --enforce-policy`.",
+      "additionalProperties": false,
+      "properties": {
+        "allowedBranches": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Branch patterns allowed to create a release. Supports * and ? globs."
+        },
+        "requireCleanWorktree": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require no staged, unstaged, or untracked files."
+        },
+        "requireAnnotatedTag": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require the candidate to be an annotated tag."
+        },
+        "requireHeadTag": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require the candidate tag target to equal HEAD."
+        },
+        "signature": {
+          "enum": ["optional", "required"],
+          "default": "optional",
+          "description": "Whether create must request a signed tag from Git."
         }
       }
     }

@@ -30,6 +30,11 @@ describe("JSON schema", () => {
       expect(parentSegment.test("../outside")).toBe(true);
       expect(parentSegment.test("packages/api")).toBe(false);
     }
+    expect(multi.properties.releasePolicy.$ref).toBe("#/definitions/releasePolicy");
+    expect(legacy.properties.releasePolicy.$ref).toBe("#/definitions/releasePolicy");
+    expect(schema.definitions.releasePolicy.properties.signature.enum).toEqual([
+      "optional", "required",
+    ]);
   });
 
   it("publishes the versioned JSON command envelope contract", async () => {

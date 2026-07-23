@@ -5,6 +5,7 @@ import type { TagLine, TagsmithConfig, ModelConfig } from "../types.js";
 import { DEFAULT_SEMVER_LINE } from "./defaults.js";
 import { hasConformingTag, inferPattern } from "./infer.js";
 import { createModel } from "./models/index.js";
+import { releasePolicySchema } from "./release-policy/schema.js";
 
 export const CONFIG_FILENAME = ".tagsmith.json";
 
@@ -54,6 +55,7 @@ const lineSchema = z.object({
 const multiConfigSchema = z.object({
   tags: z.array(lineSchema).min(1),
   default: z.string().optional(),
+  releasePolicy: releasePolicySchema.optional(),
 });
 
 const legacyConfigSchema = z.object({
@@ -62,6 +64,7 @@ const legacyConfigSchema = z.object({
   initialVersion: z.string().min(1),
   push: z.boolean().default(false),
   workspace: workspaceSchema.optional(),
+  releasePolicy: releasePolicySchema.optional(),
 });
 
 export class ConfigError extends Error {}
@@ -98,7 +101,11 @@ export function parseConfig(raw: unknown): TagsmithConfig {
   if (isMulti) {
     const result = multiConfigSchema.safeParse(raw);
     if (!result.success) throw configError(result.error);
-    return finalizeMulti(result.data.tags as TagLine[], result.data.default);
+    return finalizeMulti(
+      result.data.tags as TagLine[],
+      result.data.default,
+      result.data.releasePolicy,
+    );
   }
 
   const result = legacyConfigSchema.safeParse(raw);
@@ -111,10 +118,20 @@ export function parseConfig(raw: unknown): TagsmithConfig {
     push: result.data.push,
     workspace: result.data.workspace,
   };
-  return { lines: [line], default: "default" };
+  return {
+    lines: [line],
+    default: "default",
+    ...(result.data.releasePolicy === undefined
+      ? {}
+      : { releasePolicy: result.data.releasePolicy }),
+  };
 }
 
-function finalizeMulti(lines: TagLine[], def: string | undefined): TagsmithConfig {
+function finalizeMulti(
+  lines: TagLine[],
+  def: string | undefined,
+  releasePolicy: TagsmithConfig["releasePolicy"],
+): TagsmithConfig {
   const names = lines.map((l) => l.name);
   const dupes = names.filter((n, i) => names.indexOf(n) !== i);
   if (dupes.length > 0) {
@@ -129,7 +146,11 @@ function finalizeMulti(lines: TagLine[], def: string | undefined): TagsmithConfi
       `Invalid ${CONFIG_FILENAME}:\n  - default: "${resolvedDefault}" does not match any line name (${names.join(", ")})`,
     );
   }
-  return { lines, default: resolvedDefault };
+  return {
+    lines,
+    default: resolvedDefault,
+    ...(releasePolicy === undefined ? {} : { releasePolicy }),
+  };
 }
 
 function isSafeWorkspacePath(workspace: string): boolean {
@@ -194,6 +215,9 @@ export async function writeConfig(
       ...(l.workspace === undefined ? {} : { workspace: l.workspace }),
     })),
     default: config.default,
+    ...(config.releasePolicy === undefined
+      ? {}
+      : { releasePolicy: config.releasePolicy }),
   };
   // Never persist a broken config: validate the on-disk shape first.
   parseConfig(fileShape);

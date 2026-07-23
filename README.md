@@ -24,6 +24,8 @@ Tag formats are configurable, including `v{version}` and `release/{version}`.
   patterns to application, release, or other tag lines.
 - **Release safely with a team** — fetch remote tags before a push and use the
   included GitHub Action to enforce the same checks in CI.
+- **Check release readiness** — optionally require the correct branch, a clean
+  worktree, an annotated or signed tag, and a `HEAD` target before creation.
 - **Guard merges locally** — optionally restrict which branches may merge into
   protected branches through managed git hooks.
 
@@ -167,6 +169,37 @@ tagsmith create --tag api --require-changes --push
 changes only. It is optional, so existing single-repository configurations are
 unchanged.
 
+### Release readiness
+
+An optional top-level `releasePolicy` records local, pre-create guardrails. It
+is disabled by default: existing `create` behaviour changes only when you add
+the policy **and** pass `--enforce-policy`.
+
+```json tagsmith-config
+{
+  "pattern": "v{version}",
+  "model": { "type": "semver" },
+  "initialVersion": "0.1.0",
+  "releasePolicy": {
+    "allowedBranches": ["main", "release/*"],
+    "requireCleanWorktree": true,
+    "requireAnnotatedTag": true,
+    "requireHeadTag": true,
+    "signature": "required"
+  }
+}
+```
+
+`allowedBranches` supports `*` and `?` globs. A clean worktree includes no
+staged, unstaged, or untracked files. `requireAnnotatedTag` needs `--message`;
+`signature: "required"` needs `--sign --message "…"` and a Git signing key.
+`requireHeadTag` applies to the candidate being created, not old tags; use
+`--target <ref>` only when an intentional non-`HEAD` target is needed.
+
+Use `tagsmith audit` to inspect the configured branch/worktree rules. It makes
+no remote request unless `--fetch` is explicit. `tagsmith create --enforce-policy`
+runs the same checks with the concrete tag candidate before it changes Git state.
+
 ### Version models
 
 | Model | Example | Model setting | Increment |
@@ -186,7 +219,7 @@ non-canonical tags from representing the same version.
 | `tagsmith init` | Interactively create a tag specification (optional) |
 | `tagsmith guide` | Walk through init → list → next → create |
 | `tagsmith list` / `ls` | List tags in semantic order and report anomalies |
-| `tagsmith audit` | Audit complete tag history and tag-line assignment safety |
+| `tagsmith audit` | Audit tag history plus configured release readiness |
 | `tagsmith check [tags...]` | Validate supplied tags, or all repository tags with no arguments |
 | `tagsmith next` | Compute the next valid tag without creating it |
 | `tagsmith create` | Create the next or an explicit tag after validation |
@@ -198,6 +231,7 @@ Useful options:
 ```bash
 tagsmith list --all                    # Show every configured line and orphan tags
 tagsmith audit --json                  # Machine-readable complete tag audit
+tagsmith audit --fetch --remote origin # Include freshly fetched remote tags
 tagsmith check --strict --json         # Audit tag shape and duplicate versions
 tagsmith next --fetch --remote origin  # Include tags fetched from a remote
 tagsmith next --from-commits           # Recommend a SemVer bump from commits
@@ -205,6 +239,7 @@ tagsmith next --tag api --require-changes
 tagsmith create --level minor --push   # Create and push a minor release
 tagsmith create --set-version 1.0.5 --allow-out-of-order
 tagsmith create --level major --dry-run
+tagsmith create --enforce-policy -m "Release 1.2.0"
 ```
 
 `next` and `create` accept `--level major|minor|patch|prerelease|auto`.
@@ -239,6 +274,12 @@ human-readable messages:
 
 The published [JSON output schema](json-output.schema.json) describes the common
 envelope. Existing scripts that previously read `.tag` should read `.data.tag`.
+
+When `releasePolicy` is configured, audit also reports `PASS`, `WARN`, or
+`FAIL` checks for the current branch and worktree. Candidate-only checks
+(annotation, signature, and target) are marked not applicable until `create
+--enforce-policy` supplies the tag it intends to make. In JSON, use the stable
+`release-*` diagnostic codes rather than parsing messages.
 
 ## Remote safety and CI
 
