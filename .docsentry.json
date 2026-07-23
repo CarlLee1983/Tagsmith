@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.2.0/schema.json",
+  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.3.0/schema.json",
   "documents": [
     "README.md",
     "CONTRIBUTING.md",
@@ -30,7 +30,8 @@
         "docs/README.zh-TW.md"
       ],
       "language": "json",
-      "schema": "schema.json"
+      "schema": "schema.json",
+      "fenceLabel": "tagsmith-config"
     }
   ],
   "actionExamples": [

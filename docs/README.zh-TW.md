@@ -78,7 +78,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 
 一份設定檔可定義多條獨立的 tag 線，各線有自己的 pattern 與版本模型，彼此獨立遞增：
 
-```json
+```json tagsmith-config
 {
   "tags": [
     {
@@ -121,7 +121,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 
 既有的單線扁平格式無需修改，仍可正常載入：
 
-```json
+```json tagsmith-config
 {
   "pattern": "v{version}",
   "model": { "type": "semver", "allowPrerelease": true },
@@ -141,7 +141,7 @@ workspace 維持獨立版本序列；搭配 `--require-changes`，只有該套�
 的變更時才會允許預覽或建立 release。
 若使用 `--from-commits`，Tagsmith 也只會採納有變更該 workspace 的 commits。
 
-```json
+```json tagsmith-config
 {
   "tags": [
     {
@@ -176,7 +176,7 @@ tagsmith create --tag api --require-changes --push
 
 **SemVer**（`v1.2.3`）
 
-```json
+```json tagsmith-config
 {
   "pattern": "v{version}",
   "model": { "type": "semver", "allowPrerelease": true },
@@ -187,7 +187,7 @@ tagsmith create --tag api --require-changes --push
 
 **CalVer**（`release/2026.06.0`，token 之間需有分隔字元或固定寬度）
 
-```json
+```json tagsmith-config
 {
   "pattern": "release/{version}",
   "model": { "type": "calver", "format": "YYYY.MM.MICRO" },
@@ -198,7 +198,7 @@ tagsmith create --tag api --require-changes --push
 
 **Build number**（`build-0042`）
 
-```json
+```json tagsmith-config
 {
   "pattern": "build-{version}",
   "model": { "type": "build", "padding": 4 },
