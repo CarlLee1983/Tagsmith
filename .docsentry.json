@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.3.0/schema.json",
+  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.4.0/schema.json",
   "documents": [
     "README.md",
     "CONTRIBUTING.md",
