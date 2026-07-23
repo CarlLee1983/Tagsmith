@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="From inspecting existing tags through creating a local tag and publishing deliberately: the full Tagsmith workflow.">
+  <title>Full workflow — Tagsmith</title>
+  <link rel="stylesheet" href="../../assets/site.css">
+  <script src="../../assets/site.js" defer></script>
+</head>
+<body class="workflow-page">
+  <header class="workflow-hero">
+    <div class="wrap">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="../" aria-label="Tagsmith home">tag<span>smith</span></a>
+        <a class="lang" href="../../workflow/" lang="zh-Hant">繁體中文 <span aria-hidden="true">→</span></a>
+      </nav>
+
+      <div class="workflow-intro">
+        <div>
+          <a class="back-link" href="../"><span aria-hidden="true">←</span> Back to home</a>
+          <span class="section-label">Full workflow</span>
+          <h1>Read the history first. <strong>Then create the next tag.</strong></h1>
+          <p class="lead">The Tagsmith workflow starts with a local inspection. Preview only when the convention is clear; when it is ambiguous, the maintainer makes intent explicit. Creation and publication are separate, deliberate steps.</p>
+        </div>
+        <aside class="workflow-principles" aria-label="Workflow principles">
+          <p>Local first</p>
+          <ul>
+            <li>Inspect first; never rewrite history</li>
+            <li>Preview before creating</li>
+            <li>Creating is not publishing</li>
+          </ul>
+        </aside>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="workflow-section">
+      <div class="wrap workflow-wrap">
+        <div class="workflow-context">
+          <span>Before you start</span>
+          <p>Run these commands inside a Git repository with Node.js 18+. Every command is ready to copy; the workflow does not depend on remote state.</p>
+        </div>
+
+        <div class="workflow-route">
+          <article class="route-step">
+            <span class="route-number">01</span>
+            <div class="route-copy">
+              <span class="section-label">Inspect</span>
+              <h2>Start with the local tag history you know.</h2>
+              <p>Begin with <code>list</code>. Tagsmith orders tags semantically and flags mismatches, unparseable versions, and duplicates. It never repairs history automatically.</p>
+              <div class="command-cta workflow-command" aria-labelledby="list-command-label">
+                <p id="list-command-label" class="command-label">Try it safely</p>
+                <div class="command-row">
+                  <code id="list-command">npx @carllee1983/tagsmith list</code>
+                  <button class="copy-button" type="button" data-copy-target="#list-command" data-copy-success="Copied" data-copy-fallback="Select and copy the command manually.">Copy command</button>
+                </div>
+                <p class="command-note">This reads and evaluates local history only; it does not change the repository.</p>
+                <p class="copy-status" aria-live="polite"></p>
+              </div>
+            </div>
+          </article>
+
+          <div class="route-decision" aria-labelledby="decision-heading">
+            <div>
+              <span class="route-number">02</span>
+              <h2 id="decision-heading">Does the history make one convention clear?</h2>
+            </div>
+            <div class="branch-grid">
+              <article class="branch branch-clear">
+                <span class="branch-state">Convention clear</span>
+                <h3>Keep the inference and preview.</h3>
+                <p>A consistent SemVer-style history can follow the zero-configuration path. The next step calculates only; it does not create a tag.</p>
+                <a href="#preview">Continue to preview <span aria-hidden="true">↓</span></a>
+              </article>
+              <article class="branch branch-review">
+                <span class="branch-state">Convention ambiguous</span>
+                <h3>Let the maintainer define intent.</h3>
+                <p>Mixed, ambiguous, and non-SemVer history is not guessed or corrected automatically. Record the team convention, then inspect again.</p>
+                <div class="command-cta workflow-command compact-command" aria-labelledby="init-command-label">
+                  <p id="init-command-label" class="command-label">Set the convention</p>
+                  <div class="command-row">
+                    <code id="init-command">npx @carllee1983/tagsmith init</code>
+                    <button class="copy-button" type="button" data-copy-target="#init-command" data-copy-success="Copied" data-copy-fallback="Select and copy the command manually.">Copy</button>
+                  </div>
+                  <p class="command-note">Commit the generated <code>.tagsmith.json</code>, then run <code>list</code> again.</p>
+                  <p class="copy-status" aria-live="polite"></p>
+                </div>
+                <a href="https://github.com/CarlLee1983/Tagsmith#readme">See the configuration shape <span aria-hidden="true">→</span></a>
+              </article>
+            </div>
+          </div>
+
+          <article id="preview" class="route-step">
+            <span class="route-number">03</span>
+            <div class="route-copy">
+              <span class="section-label">Preview</span>
+              <h2>Once intent is clear, preview the next version.</h2>
+              <p><code>next</code> calculates the next tag from the active convention and known local history. It creates no tag and makes no remote request.</p>
+              <div class="command-cta workflow-command" aria-labelledby="next-command-label">
+                <p id="next-command-label" class="command-label">Preview only</p>
+                <div class="command-row">
+                  <code id="next-command">npx @carllee1983/tagsmith next</code>
+                  <button class="copy-button" type="button" data-copy-target="#next-command" data-copy-success="Copied" data-copy-fallback="Select and copy the command manually.">Copy command</button>
+                </div>
+                <p class="command-note">For a minor or major release, add the same <code>--level</code> here and when creating.</p>
+                <p class="copy-status" aria-live="polite"></p>
+              </div>
+            </div>
+          </article>
+
+          <article class="route-step">
+            <span class="route-number">04</span>
+            <div class="route-copy">
+              <span class="section-label">Create</span>
+              <h2>After the preview, confirm <code>push: false</code> before creating locally.</h2>
+              <p>Before creation, Tagsmith validates again against the explicit convention and known local history. If the proposal does not fit, it stops instead of selecting a resolution for you.</p>
+              <p class="creation-condition">New configuration defaults to <code>push: false</code>. <code>create</code> honours the selected tag line's setting: when it is <code>false</code>, the tag stays local; when it is <code>true</code>, this command publishes it.</p>
+              <div class="command-cta workflow-command" aria-labelledby="create-command-label">
+                <p id="create-command-label" class="command-label">Create after checking push</p>
+                <div class="command-row">
+                  <code id="create-command">npx @carllee1983/tagsmith create</code>
+                  <button class="copy-button" type="button" data-copy-target="#create-command" data-copy-success="Copied" data-copy-fallback="Select and copy the command manually.">Copy command</button>
+                </div>
+                <p class="command-note">Copy this only after confirming the selected tag line keeps <code>push: false</code>.</p>
+                <p class="copy-status" aria-live="polite"></p>
+              </div>
+            </div>
+          </article>
+
+          <article class="route-step route-step-final">
+            <span class="route-number">05</span>
+            <div class="route-copy">
+              <span class="section-label">Publish</span>
+              <h2>Remote publication is a separate, intentional decision.</h2>
+              <p>Whether, when, and how a tag is pushed belongs to the team’s existing Git hosting and release workflow. Tagsmith provides local validation and predictable creation; it does not replace remote conflict handling, access control, or repository-wide enforcement.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="workflow-support">
+      <div class="wrap support-grid">
+        <article>
+          <span class="section-label">For automation</span>
+          <h2>Give surrounding workflows the evaluation result.</h2>
+          <p><code>--json</code> lets CI and scripts consume Tagsmith’s convention evaluation. Your automation remains responsible for the next action.</p>
+          <code class="inline-command">npx @carllee1983/tagsmith next --json</code>
+        </article>
+        <article>
+          <span class="section-label">Need more configuration?</span>
+          <h2>Start with one tag line.</h2>
+          <p>SemVer is the default evaluation path. Add CalVer, build numbers, multiple tag lines, or an optional local merge policy only after the need is clear.</p>
+          <a class="button secondary" href="https://github.com/CarlLee1983/Tagsmith#readme">Read the configuration reference <span aria-hidden="true">→</span></a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Tagsmith · Define, inspect, and safely create git tags.</span>
+      <span><a href="https://github.com/CarlLee1983/Tagsmith">GitHub</a> · <a href="https://www.npmjs.com/package/@carllee1983/tagsmith">npm</a> · <a href="../../workflow/" lang="zh-Hant">繁體中文</a></span>
+    </div>
+  </footer>
+</body>
+</html>

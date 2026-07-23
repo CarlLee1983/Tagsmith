@@ -6,6 +6,7 @@ to their English counterparts.
 
 | Topic | English | 繁體中文 |
 | --- | --- | --- |
+| Visual adoption workflow | [Full workflow](en/workflow/) | [完整流程](workflow/) |
 | Product guide and CLI reference | [README](../README.md) | [README.zh-TW.md](README.zh-TW.md) |
 | Contributing and architecture | [CONTRIBUTING](../CONTRIBUTING.md) | [CONTRIBUTING.zh-TW.md](CONTRIBUTING.zh-TW.md) |
 | Validate pushed tags with Husky | [husky-pre-push.md](husky-pre-push.md) | [husky-pre-push.zh-TW.md](husky-pre-push.zh-TW.md) |

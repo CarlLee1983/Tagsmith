@@ -11,12 +11,15 @@ adoption workflow.
 
 - Add a Traditional Chinese landing page at `docs/index.html`.
 - Add an English landing page at `docs/en/index.html`.
+- Add a bilingual HTML workflow walkthrough at `docs/workflow/index.html` and
+  `docs/en/workflow/index.html`.
 - Add a GitHub Actions Pages deployment workflow.
 - Keep the site fully static: no build step, framework, tracking service, or
   third-party runtime dependency.
 
-The existing Markdown documentation remains the detailed reference material; the
-landing pages are a concise product introduction rather than a duplicate CLI
+The existing Markdown documentation remains the detailed reference material.
+The landing pages are a concise product introduction; the workflow pages make
+the adoption decision path easier to scan without becoming a duplicate CLI
 manual or configuration reference.
 
 ## Audience and message
@@ -66,6 +69,13 @@ Each language page has the same sequence and calls to action:
 6. **Trust and call to action** — link to the GitHub repository, npm package,
    full documentation, and the other language version.
 
+The full-workflow route expands the supporting CTA into an HTML decision path:
+inspect local history; preview when the convention is clear; otherwise use
+`init`, inspect again, then preview; finally create locally and treat remote
+publication as a separate team-workflow decision. It uses real copyable
+commands, keeps illustrative output clearly labelled if shown, and links to
+Markdown for configuration shapes and the complete CLI reference.
+
 The hero's command is real and safe to copy; tag creation is never presented as
 the first action.
 
@@ -75,6 +85,9 @@ The two pages use stable dedicated URLs rather than client-side translation:
 | --- | --- | --- |
 | Traditional Chinese | `/Tagsmith/` | `/Tagsmith/en/` |
 | English | `/Tagsmith/en/` | `/Tagsmith/` |
+
+The workflow links are likewise direct and reciprocal: `/Tagsmith/workflow/`
+and `/Tagsmith/en/workflow/`.
 
 This makes either language page directly shareable and indexable.
 
@@ -124,8 +137,8 @@ relative asset paths, and confirm the Pages workflow uploads `./docs`.
 
 After deployment, smoke-test availability, asset integrity, navigation, primary
 routes, and external GitHub/npm verification links. A public deployment is
-complete only when the root and `/en/` pages load without missing assets or
-broken links.
+complete only when the root, `/en/`, `/workflow/`, and `/en/workflow/` pages
+load without missing assets or broken links.
 
 ## Non-goals
 

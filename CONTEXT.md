@@ -57,7 +57,7 @@ For the Tagsmith landing page, the intended successful visitor action: copy and 
 _Avoid_: Repository visit, vanity engagement
 
 **Full-workflow route**:
-The documentation route that takes a maintainer from safe evaluation through explicit configuration and later validated creation.
+The dedicated static HTML route at `/workflow/` and `/en/workflow/` that takes a maintainer from safe evaluation through explicit configuration and later validated creation. README remains the detailed configuration and CLI reference.
 _Avoid_: Primary conversion, project-verification link
 
 **First-use path**:

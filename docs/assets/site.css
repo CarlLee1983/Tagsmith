@@ -108,6 +108,65 @@ h2 { font-size: clamp(1.75rem, 3vw, 2.55rem); margin: 9px 0 14px; }
 .footer { padding: 38px 0; color: var(--muted); font-size: .9rem; }
 .footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 
+.workflow-page { background: var(--paper); }
+.workflow-hero { overflow: hidden; background: radial-gradient(circle at 81% 27%, #e7e7fa 0, transparent 26rem), var(--paper); }
+.workflow-intro { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: clamp(38px, 8vw, 126px); align-items: end; padding: 48px 0 74px; }
+.workflow-intro h1 { max-width: 680px; }
+.workflow-intro .lead { max-width: 620px; }
+.back-link { display: inline-flex; gap: 8px; margin-bottom: 30px; color: var(--muted); font-size: .9rem; font-weight: 750; text-decoration: none; }
+.back-link:hover { color: var(--indigo-deep); }
+.workflow-principles { position: relative; padding: 20px 0 3px 23px; border-left: 2px solid var(--teal); color: var(--muted); }
+.workflow-principles p { margin: 0 0 7px; color: var(--teal); font-size: .78rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.workflow-principles ul { margin: 0; padding-left: 18px; font-size: .92rem; }
+.workflow-principles li + li { margin-top: 4px; }
+
+.workflow-section { padding: 82px 0 98px; }
+.workflow-wrap { display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: clamp(28px, 6vw, 100px); align-items: start; }
+.workflow-context { position: sticky; top: 24px; padding-top: 15px; border-top: 1px solid var(--indigo); color: var(--muted); font-size: .88rem; }
+.workflow-context span { color: var(--indigo-deep); font-size: .76rem; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+.workflow-context p { margin: 10px 0 0; }
+.workflow-route { position: relative; max-width: 790px; }
+.workflow-route::before { position: absolute; top: 24px; bottom: 25px; left: 24px; width: 1px; background: var(--line); content: ""; }
+.route-step { position: relative; padding: 0 0 64px 82px; }
+.route-step::before { position: absolute; z-index: 1; top: 12px; left: 17px; width: 15px; height: 15px; border: 3px solid var(--paper); border-radius: 50%; background: var(--indigo); box-shadow: 0 0 0 1px var(--indigo); content: ""; }
+.route-number { display: block; color: var(--indigo); font: 800 .78rem/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: .04em; }
+.route-step > .route-number { position: absolute; top: 14px; left: 0; width: 12px; overflow: visible; transform: translateX(-29px) rotate(-90deg); transform-origin: center; }
+.route-copy h2, .route-decision h2 { margin: 8px 0 13px; font-size: clamp(1.55rem, 2.5vw, 2.25rem); }
+.route-copy > p { max-width: 660px; margin: 0; color: var(--muted); }
+.creation-condition { max-width: 660px; margin: 15px 0 -8px; padding-left: 14px; border-left: 2px solid var(--amber); color: var(--muted); font-size: .93rem; }
+.workflow-command { max-width: 535px; }
+.workflow-command .command-note { max-width: 510px; }
+
+.route-decision { position: relative; margin: 0 0 64px 82px; padding: 0 0 0; }
+.route-decision::before { position: absolute; z-index: 1; top: 10px; left: -65px; width: 15px; height: 15px; border: 3px solid var(--paper); border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 1px var(--amber); content: ""; }
+.route-decision > div:first-child > .route-number { margin-bottom: 10px; color: var(--amber); }
+.branch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; margin-top: 28px; }
+.branch { padding: 20px 0 0; border-top: 3px solid var(--line); }
+.branch-clear { border-color: var(--teal); }
+.branch-review { border-color: var(--amber); }
+.branch-state { color: var(--muted); font-size: .76rem; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+.branch-clear .branch-state { color: var(--teal); }
+.branch-review .branch-state { color: var(--amber); }
+.branch h3 { margin: 11px 0 8px; font-size: 1.22rem; }
+.branch p { margin: 0; color: var(--muted); font-size: .93rem; }
+.branch > a { display: inline-flex; gap: 7px; margin-top: 18px; color: var(--indigo-deep); font-size: .9rem; font-weight: 800; text-decoration: none; }
+.branch > a:hover { color: var(--indigo); }
+.compact-command { margin-top: 20px; padding-left: 15px; }
+.compact-command .command-row { gap: 7px; }
+.compact-command .command-row code { padding: 8px 9px; font-size: .78rem; }
+.compact-command .copy-button { padding: 8px 10px; font-size: .78rem; }
+.compact-command .command-note { font-size: .76rem; }
+.route-step-final { padding-bottom: 0; }
+.route-step-final::before { background: var(--teal); box-shadow: 0 0 0 1px var(--teal); }
+
+.workflow-support { padding: 75px 0; border-block: 1px solid var(--line); background: var(--surface); }
+.support-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(36px, 8vw, 120px); }
+.support-grid article { padding-top: 20px; border-top: 3px solid var(--indigo); }
+.support-grid article + article { border-color: var(--teal); }
+.support-grid h2 { max-width: 440px; font-size: clamp(1.45rem, 2.4vw, 2rem); }
+.support-grid p { max-width: 500px; color: var(--muted); }
+.inline-command { display: inline-block; max-width: 100%; overflow-x: auto; padding: 8px 10px; background: var(--paper); color: var(--indigo-deep); white-space: nowrap; }
+
 @media (max-width: 760px) {
   .hero-grid, .quick { grid-template-columns: 1fr; gap: 26px; }
   .hero-art { margin: 0; }
@@ -115,6 +174,18 @@ h2 { font-size: clamp(1.75rem, 3vw, 2.55rem); margin: 9px 0 14px; }
   .steps { grid-template-columns: 1fr 1fr; }
   .feature { grid-template-columns: 1fr; gap: 7px; }
   section { padding: 58px 0; }
+  .workflow-intro, .workflow-wrap, .support-grid { grid-template-columns: 1fr; }
+  .workflow-intro { gap: 32px; padding: 35px 0 58px; }
+  .workflow-context { position: static; max-width: 520px; }
+  .workflow-section { padding: 58px 0 70px; }
+  .workflow-route::before { left: 18px; }
+  .route-step { padding-left: 58px; }
+  .route-step::before { left: 11px; }
+  .route-step > .route-number { left: 0; transform: translateX(-25px) rotate(-90deg); }
+  .route-decision { margin-left: 58px; }
+  .route-decision::before { left: -47px; }
+  .branch-grid { grid-template-columns: 1fr; gap: 30px; }
+  .workflow-support { padding: 58px 0; }
 }
 
 @media (max-width: 430px) {

@@ -2,6 +2,8 @@
 
 [English documentation](../README.md) · [文件索引](README.md)
 
+想先用決策流程理解採用路徑？閱讀 [HTML 完整流程](workflow/)。設定格式與完整 CLI 參考仍在本文件。
+
 [![npm version](https://img.shields.io/npm/v/@carllee1983/tagsmith.svg)](https://www.npmjs.com/package/@carllee1983/tagsmith)
 
 定義專案的 git tag 規格、檢視現有 tag，並安全地產生下一個 git tag——避免順序錯亂或格式不一致。
