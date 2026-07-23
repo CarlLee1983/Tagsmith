@@ -8,8 +8,8 @@ Tagsmith is a CLI for making a repository's git-tag convention explicit and for 
 Tagsmith provides safe, predictable git tags through local validation of a proposed tag against the configured convention and known local tag history before creation. Remote enforcement, concurrent-maintainer coordination, and correction of ambiguous history are outside this promise.
 _Avoid_: Release automation platform
 
-**Hero demonstration**:
-The landing-page terminal example uses real, safe-to-copy evaluation commands. Any displayed result is labelled illustrative; tag creation is not a hero action.
+**Hero visual**:
+A text-free illustration of an ordered tag path that reinforces Tagsmith's semantic colors. It supports—but never replaces—the safe-to-copy evaluation command, and tag creation is not a hero action.
 _Avoid_: Fabricated operational result, creation call to action
 
 **Validated creation**:

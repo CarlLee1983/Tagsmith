@@ -47,7 +47,9 @@ Each language page has the same sequence and calls to action:
 1. **Hero** — concise promise, the copyable safe-evaluation command
    `npx @carllee1983/tagsmith list`, prerequisites (Git repository and Node.js
    18+), full-workflow link, and GitHub/npm verification links. The command
-   remains visible and manually copyable without JavaScript.
+   remains visible and manually copyable without JavaScript. A text-free hero
+   illustration reinforces the semantic release-path palette without replacing
+   the command.
 2. **Problem** — inconsistent formats, unsafe manual version selection, and
    unclear repository history.
 3. **How it works** — inspect first; preview when the convention is clear; for
@@ -64,8 +66,8 @@ Each language page has the same sequence and calls to action:
 6. **Trust and call to action** — link to the GitHub repository, npm package,
    full documentation, and the other language version.
 
-Hero output is clearly labelled illustrative, uses only real safe-to-copy
-commands, and never presents tag creation as the first action.
+The hero's command is real and safe to copy; tag creation is never presented as
+the first action.
 
 The two pages use stable dedicated URLs rather than client-side translation:
 
@@ -84,12 +86,15 @@ semantic release-oriented palette: deep indigo for actions, teal for valid
 states, amber for review, and coral for risks or anomalies. The page uses
 responsive CSS grids and semantic HTML.
 
-There are no generated image assets, analytics, trackers, external font
+The generated hero illustration is stored locally as responsive WebP assets at
+`docs/assets/tagsmith-hero-v2-768.webp` and
+`docs/assets/tagsmith-hero-v2.webp`; it has no text or brand marks and
+introduces no runtime request. There are no analytics, trackers, external font
 requests, embedded verification widgets, frameworks, or third-party runtime
 dependencies. This keeps the Pages artifact private, small, reproducible, and
-self-contained. Shared CSS and a small dependency-free JavaScript helper may
-live under `docs/assets/`; the helper only improves command copying and must
-fall back gracefully when JavaScript or clipboard access is unavailable.
+self-contained. Shared CSS and a small dependency-free JavaScript helper may live under
+`docs/assets/`; the helper only improves command copying and must fall back
+gracefully when JavaScript or clipboard access is unavailable.
 
 Both language editions have equivalent claims, calls to action, and completeness
 with independently natural wording. Every action is keyboard-operable, clearly
