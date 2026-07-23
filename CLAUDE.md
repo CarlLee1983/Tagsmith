@@ -36,6 +36,10 @@ Git 操作用 `node:child_process` 的 `execFile`，不引入重依賴、不經 
   時先宣告者勝（tie-break）。不符任何線的 tag 進 `orphans`。
 - **選線**：CLI 各指令以 `selectLine(config, flags.tag)` 取得目標線；省略 `--tag` 時
   取 `config.default`；線名不存在時錯誤訊息列出可用名單。
+- **workspace scope**：`TagLine.workspace` 是選填、repo 相對且不可跳脫 repo 的路徑。
+  `next` / `create --require-changes` 透過 git adapter 比對最新該線 tag 後的已提交變更；
+  `--from-commits` 也只能讀取該 workspace 的 commit 歷史。workspace 未設定時必須明確報錯，
+  不能退化成全 repo 檢查。
 
 ## 合併政策（merge policy）
 
@@ -79,3 +83,6 @@ npm run build              # 編譯到 dist/（CLI E2E 測試前需先跑）
 - CLI 子指令避免用 `--version`（與 commander 全域 `--version` 衝突）；本專案用
   `--set-version`。
 - 對外輸出：正常訊息走 stdout，錯誤走 stderr（`src/cli/ui.ts`）；`--json` 模式只印 JSON。
+- `--from-commits` 的 Conventional Commit 判斷維持在 `core/conventional.ts`（純函式）；
+  讀取 commit 歷史只可放在 `git/git.ts` adapter。此模式只支援 semver，且不得與
+  `--level` 或 `--set-version` 混用。

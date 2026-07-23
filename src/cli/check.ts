@@ -1,7 +1,5 @@
-import { compilePattern } from "../core/pattern.js";
 import type { ResolvedConfig } from "../core/config.js";
-import { createModel } from "../core/models/index.js";
-import { classify } from "../core/analyze.js";
+import { checkTags, type CheckResult } from "../core/check.js";
 import { selectLine } from "../core/lines.js";
 import { ensureRepo, listTags } from "../git/git.js";
 import { color, info, printError, success } from "./ui.js";
@@ -11,13 +9,7 @@ import { implicitConfigJson, printImplicitConfigNotice } from "./implicit.js";
 export interface CheckFlags {
   json?: boolean;
   tag?: string;
-}
-
-interface CheckResult {
-  raw: string;
-  line: string | null;
-  ok: boolean;
-  anomaly: string | null;
+  strict?: boolean;
 }
 
 /**
@@ -28,11 +20,12 @@ function emitCheck(
   results: CheckResult[],
   resolved: ResolvedConfig,
   json: boolean | undefined,
+  strict: boolean | undefined,
 ): number {
   const allOk = results.every((r) => r.ok);
 
   if (json) {
-    info(JSON.stringify({ results, ...implicitConfigJson(resolved) }, null, 2));
+    info(JSON.stringify({ results, strict: strict === true, ...implicitConfigJson(resolved) }, null, 2));
     return allOk ? 0 : 1;
   }
 
@@ -60,8 +53,13 @@ export async function runCheck(
     const { config } = resolved;
 
     let targets: string[];
+    let existingTags: string[] = [];
     if (tags.length > 0) {
       targets = tags;
+      if (flags.strict) {
+        await ensureRepo({ cwd });
+        existingTags = await listTags({ cwd });
+      }
     } else {
       await ensureRepo({ cwd });
       targets = await listTags({ cwd });
@@ -69,40 +67,20 @@ export async function runCheck(
 
     if (flags.tag) {
       const line = selectLine(config, flags.tag);
-      const pattern = compilePattern(line.pattern);
-      const model = createModel(line.model);
-      const results: CheckResult[] = targets.map((raw) => {
-        const c = classify(raw, pattern, model);
-        return {
-          raw,
-          line: c.conforming ? line.name : null,
-          ok: c.conforming,
-          anomaly: c.anomaly,
-        };
-      });
-      return emitCheck(results, resolved, flags.json);
+      return emitCheck(
+        checkTags(targets, [line], { strict: flags.strict, existingTags }),
+        resolved,
+        flags.json,
+        flags.strict,
+      );
     }
 
-    const compiled = config.lines.map((l) => ({
-      line: l,
-      pattern: compilePattern(l.pattern),
-      model: createModel(l.model),
-    }));
-    const results: CheckResult[] = targets.map((raw) => {
-      const hit = compiled.find((c) => c.pattern.extract(raw) !== null);
-      if (!hit) {
-        return { raw, line: null, ok: false, anomaly: "pattern-mismatch" };
-      }
-      const c = classify(raw, hit.pattern, hit.model);
-      return {
-        raw,
-        line: hit.line.name,
-        ok: c.conforming,
-        anomaly: c.anomaly,
-      };
-    });
-
-    return emitCheck(results, resolved, flags.json);
+    return emitCheck(
+      checkTags(targets, config.lines, { strict: flags.strict, existingTags }),
+      resolved,
+      flags.json,
+      flags.strict,
+    );
   } catch (err) {
     printError(err);
     return 1;

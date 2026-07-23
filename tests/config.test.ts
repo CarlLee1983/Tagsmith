@@ -86,6 +86,38 @@ describe("parseConfig (multi-line)", () => {
     expect(cfg.lines[0].push).toBe(false);
   });
 
+  it("preserves a relative workspace path on a tag line", () => {
+    const cfg = parseConfig({
+      tags: [
+        {
+          name: "api",
+          workspace: "packages/api",
+          pattern: "api/v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+        },
+      ],
+    });
+
+    expect(cfg.lines[0].workspace).toBe("packages/api");
+  });
+
+  it("rejects a workspace path that escapes the repository", () => {
+    expect(() =>
+      parseConfig({
+        tags: [
+          {
+            name: "api",
+            workspace: "../outside",
+            pattern: "api/v{version}",
+            model: { type: "semver" },
+            initialVersion: "0.1.0",
+          },
+        ],
+      }),
+    ).toThrow(ConfigError);
+  });
+
   it("defaults `default` to the first line when omitted", () => {
     const cfg = parseConfig({ tags: base.tags });
     expect(cfg.default).toBe("app");

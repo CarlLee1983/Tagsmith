@@ -35,12 +35,20 @@ const patternSchema = z
     message: "pattern must contain the {version} placeholder",
   });
 
+const workspaceSchema = z
+  .string()
+  .min(1)
+  .refine(isSafeWorkspacePath, {
+    message: "workspace must be a relative path inside the repository",
+  });
+
 const lineSchema = z.object({
   name: z.string().min(1),
   pattern: patternSchema,
   model: modelSchema,
   initialVersion: z.string().min(1),
   push: z.boolean().default(false),
+  workspace: workspaceSchema.optional(),
 });
 
 const multiConfigSchema = z.object({
@@ -53,6 +61,7 @@ const legacyConfigSchema = z.object({
   model: modelSchema,
   initialVersion: z.string().min(1),
   push: z.boolean().default(false),
+  workspace: workspaceSchema.optional(),
 });
 
 export class ConfigError extends Error {}
@@ -100,6 +109,7 @@ export function parseConfig(raw: unknown): TagsmithConfig {
     model: result.data.model as ModelConfig,
     initialVersion: result.data.initialVersion,
     push: result.data.push,
+    workspace: result.data.workspace,
   };
   return { lines: [line], default: "default" };
 }
@@ -120,6 +130,11 @@ function finalizeMulti(lines: TagLine[], def: string | undefined): TagsmithConfi
     );
   }
   return { lines, default: resolvedDefault };
+}
+
+function isSafeWorkspacePath(workspace: string): boolean {
+  if (path.isAbsolute(workspace) || path.win32.isAbsolute(workspace)) return false;
+  return !workspace.split(/[\\/]+/).includes("..");
 }
 
 function configError(error: z.ZodError): ConfigError {
@@ -176,6 +191,7 @@ export async function writeConfig(
       model: l.model,
       initialVersion: l.initialVersion,
       push: l.push,
+      ...(l.workspace === undefined ? {} : { workspace: l.workspace }),
     })),
     default: config.default,
   };

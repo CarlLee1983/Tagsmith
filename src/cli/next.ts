@@ -1,10 +1,11 @@
 import { createModel } from "../core/models/index.js";
 import { planNext } from "../core/plan.js";
 import { assignTagsToLines, selectLine } from "../core/lines.js";
-import { ensureRepo, listTags } from "../git/git.js";
-import type { BumpLevel } from "../types.js";
+import { ensureRepo, fetchTags, listTags } from "../git/git.js";
 import { color, info, printError, warn } from "./ui.js";
 import { printNextStepsAfterNext } from "./guidance.js";
+import { requireWorkspaceChanges } from "./workspace.js";
+import { resolveReleaseInput } from "./release-input.js";
 import { resolveConfig } from "./resolve-config.js";
 import { implicitConfigJson, printImplicitConfigNotice } from "./implicit.js";
 
@@ -13,21 +14,37 @@ export interface NextFlags {
   json?: boolean;
   hints?: boolean;
   tag?: string;
+  fetch?: boolean;
+  remote?: string;
+  fromCommits?: boolean;
+  requireChanges?: boolean;
 }
-
-const LEVELS: BumpLevel[] = ["major", "minor", "patch", "prerelease", "auto"];
 
 export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
   try {
-    const level = resolveLevel(flags.level);
     const resolved = await resolveConfig(cwd);
     const { config } = resolved;
     await ensureRepo({ cwd });
+    if (flags.fetch) {
+      await fetchTags({ cwd, remote: flags.remote });
+      if (!flags.json) info(`Fetched tags from ${flags.remote ?? "origin"}.`);
+    }
     const line = selectLine(config, flags.tag);
     const model = createModel(line.model);
     const allTags = await listTags({ cwd });
     const lineTags = assignTagsToLines(allTags, config.lines).byLine.get(line.name) ?? [];
+    const { level, recommendation } = await resolveReleaseInput({
+      cwd,
+      line,
+      model,
+      lineTags,
+      level: flags.level,
+      fromCommits: flags.fromCommits,
+    });
     const plan = planNext(line, model, lineTags, level);
+    if (flags.requireChanges) {
+      await requireWorkspaceChanges(cwd, line, plan.analysis.latest?.raw ?? null);
+    }
 
     if (plan.fresh && plan.analysis.anomalies.length > 0 && !flags.json) {
       warn(
@@ -44,6 +61,8 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
             fromVersion: plan.fromVersion,
             fresh: plan.fresh,
             line: line.name,
+            workspace: line.workspace ?? null,
+            recommendation,
             ...implicitConfigJson(resolved),
           },
           null,
@@ -54,6 +73,12 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
     }
 
     printImplicitConfigNotice(resolved, flags.json);
+
+    if (recommendation) {
+      info(
+        `Conventional Commits recommend a ${recommendation.level} release (${recommendation.reasons.length} matching commit(s)).`,
+      );
+    }
 
     if (plan.fresh) {
       info(`${color.cyan(plan.tag)} ${color.dim("(initial — no prior tag)")}`);
@@ -68,10 +93,4 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
     printError(err);
     return 1;
   }
-}
-
-function resolveLevel(raw: string | undefined): BumpLevel {
-  if (raw === undefined) return "patch";
-  if ((LEVELS as string[]).includes(raw)) return raw as BumpLevel;
-  throw new Error(`Invalid level "${raw}". Expected one of: ${LEVELS.join(", ")}`);
 }

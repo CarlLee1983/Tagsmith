@@ -22,6 +22,8 @@ Tag formats are configurable, including `v{version}` and `release/{version}`.
   tags when no configuration file exists.
 - **Support multiple release lines** — give independent version models and tag
   patterns to application, release, or other tag lines.
+- **Release safely with a team** — fetch remote tags before a push and use the
+  included GitHub Action to enforce the same checks in CI.
 - **Guard merges locally** — optionally restrict which branches may merge into
   protected branches through managed git hooks.
 
@@ -115,6 +117,7 @@ with `--tag <name>`.
 | `model` | Yes | Version-model object |
 | `initialVersion` | Yes | Starting point when no valid tag exists |
 | `push` | No | Whether `create` pushes by default (`false`) |
+| `workspace` | No | Repository-relative monorepo path used by `--require-changes` |
 | `default` | No | Default line; defaults to the first item in `tags` |
 
 The legacy single-line format remains supported. It is normalized internally as
@@ -131,6 +134,38 @@ a line named `default`, so existing users do not need to migrate.
 
 Add `"$schema": "./node_modules/@carllee1983/tagsmith/schema.json"` to enable
 editor completion and validation.
+
+### Monorepo workspaces
+
+A tag line can be scoped to a package path. The existing `--tag` selector then
+keeps each workspace's tag sequence independent, while `--require-changes`
+prevents a release when that package has not changed since its latest tag.
+When using `--from-commits`, Tagsmith likewise considers only commits that
+touch the selected workspace.
+
+```json
+{
+  "tags": [
+    {
+      "name": "api",
+      "workspace": "packages/api",
+      "pattern": "api/v{version}",
+      "model": { "type": "semver" },
+      "initialVersion": "0.1.0"
+    }
+  ],
+  "default": "api"
+}
+```
+
+```bash
+tagsmith next --tag api --require-changes
+tagsmith create --tag api --require-changes --push
+```
+
+`workspace` must stay inside the repository and is evaluated against committed
+changes only. It is optional, so existing single-repository configurations are
+unchanged.
 
 ### Version models
 
@@ -161,16 +196,53 @@ Useful options:
 
 ```bash
 tagsmith list --all                    # Show every configured line and orphan tags
-tagsmith check --json                  # Emit structured validation results
-tagsmith next --tag release --json     # Compute a specific line as JSON
+tagsmith check --strict --json         # Audit tag shape and duplicate versions
+tagsmith next --fetch --remote origin  # Include tags fetched from a remote
+tagsmith next --from-commits           # Recommend a SemVer bump from commits
+tagsmith next --tag api --require-changes
 tagsmith create --level minor --push   # Create and push a minor release
 tagsmith create --set-version 1.0.5 --allow-out-of-order
 tagsmith create --level major --dry-run
 ```
 
 `next` and `create` accept `--level major|minor|patch|prerelease|auto`.
-`create` also accepts `--message`, `--set-version`, `--push`, `--dry-run`, and
-`--allow-out-of-order`.
+`--from-commits` is an alternative to `--level` for SemVer lines: a breaking
+change recommends `major`, `feat` recommends `minor`, and `fix` or `perf`
+recommends `patch`. For a workspace-scoped line, the recommendation considers
+only commits that touch that workspace. `create` also accepts `--message`, `--set-version`,
+`--push`, `--dry-run`, and `--allow-out-of-order`.
+
+## Remote safety and CI
+
+`create --push` fetches tags from `origin` before choosing a version, so a
+stale local clone does not reuse a version already published by a teammate.
+Use `--fetch` for the same protection on a preview, and `--remote <name>` to
+select another remote. A push can still be rejected if another release wins the
+race after the fetch; re-fetch and choose a new version in that case. A
+`--dry-run` remains local unless `--fetch` is supplied explicitly.
+
+`check --strict <tag>` also checks a proposed version against the repository's
+existing tag history. Without an explicit tag, it audits all local tags.
+In its JSON result, `line: null` means no configured pattern matched; an
+unparseable version still identifies the line whose pattern it matched.
+
+The repository is a reusable GitHub Action. It builds Tagsmith from the checked
+out action, fetches tags by default, then runs `check --json --strict`:
+
+```yaml
+name: Validate tags
+on: [push, pull_request]
+
+jobs:
+  tags:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: CarlLee1983/Tagsmith@main # Pin a release tag or commit SHA in production.
+```
+
+Set `with: { working-directory: packages/api, fetch-tags: "false" }` when the
+configuration lives below the repository root or tags are already available.
 
 ## Merge policy
 

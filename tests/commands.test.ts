@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -168,6 +168,24 @@ describe("command runners (in-process)", () => {
       expect(r.code).toBe(0);
     });
 
+    it("strict mode rejects an explicit tag whose version already exists", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() =>
+        runCheck(dir, ["v1.0.0"], { strict: true, json: true }),
+      );
+
+      expect(r.code).toBe(1);
+      const result = JSON.parse(r.out).results[0];
+      expect(result).toMatchObject({
+        raw: "v1.0.0",
+        ok: false,
+        anomaly: "duplicate-version",
+      });
+      expect(JSON.parse(r.out).strict).toBe(true);
+    });
+
     it("validates explicit tags without a config file", async () => {
       const r = await capture(() => runCheck(dir, ["v1.0.0"], {}));
       expect(r.code).toBe(0);
@@ -334,6 +352,36 @@ describe("command runners (in-process)", () => {
       expect(JSON.parse(r.out).tag).toBe("v1.3.0");
     });
 
+    it("derives a semver bump from Conventional Commits since the latest tag", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "v1.0.0");
+      await writeFile(path.join(dir, "feature.txt"), "enabled\n", "utf8");
+      execFileSync("git", ["add", "feature.txt"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat: add remote safety"], {
+        cwd: dir,
+      });
+
+      const r = await capture(() =>
+        runNext(dir, { fromCommits: true, json: true }),
+      );
+
+      expect(r.code).toBe(0);
+      expect(JSON.parse(r.out)).toMatchObject({
+        tag: "v1.1.0",
+        recommendation: { level: "minor" },
+      });
+    });
+
+    it("does not combine Conventional Commit recommendation with an explicit level", async () => {
+      await runInit(dir, { yes: true });
+      const r = await capture(() =>
+        runNext(dir, { fromCommits: true, level: "patch" }),
+      );
+
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/cannot be combined with --level/);
+    });
+
     it("rejects an invalid level", async () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runNext(dir, { level: "bogus" }));
@@ -388,6 +436,85 @@ describe("command runners (in-process)", () => {
       const json = JSON.parse(r.out);
       expect(json.line).toBe("release");
       expect(json.tag).toBe("release/8");
+    });
+
+    it("only proposes a workspace release when that workspace changed", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            {
+              name: "api",
+              workspace: "packages/api",
+              pattern: "api/v{version}",
+              model: { type: "semver" },
+              initialVersion: "0.1.0",
+            },
+            {
+              name: "web",
+              workspace: "packages/web",
+              pattern: "web/v{version}",
+              model: { type: "semver" },
+              initialVersion: "0.1.0",
+            },
+          ],
+          default: "api",
+        }),
+        "utf8",
+      );
+      await mkdir(path.join(dir, "packages", "api"), { recursive: true });
+      await mkdir(path.join(dir, "packages", "web"), { recursive: true });
+      await writeFile(path.join(dir, "packages", "api", "index.ts"), "export {};\n");
+      await writeFile(path.join(dir, "packages", "web", "index.ts"), "export {};\n");
+      execFileSync("git", ["add", "packages"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat: add packages"], { cwd: dir });
+      tag(dir, "api/v1.0.0");
+
+      await writeFile(path.join(dir, "packages", "web", "index.ts"), "export const web = true;\n");
+      execFileSync("git", ["add", "packages/web/index.ts"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat(web)!: redesign client"], {
+        cwd: dir,
+      });
+      const blocked = await capture(() =>
+        runNext(dir, { tag: "api", requireChanges: true }),
+      );
+      expect(blocked.code).toBe(1);
+      expect(blocked.err).toMatch(/No changes in workspace "packages\/api"/);
+
+      await writeFile(path.join(dir, "packages", "api", "index.ts"), "export const api = true;\n");
+      execFileSync("git", ["add", "packages/api/index.ts"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "fix(api): correct output"], {
+        cwd: dir,
+      });
+      const scopedRecommendation = await capture(() =>
+        runNext(dir, {
+          tag: "api",
+          fromCommits: true,
+          requireChanges: true,
+          json: true,
+        }),
+      );
+      expect(scopedRecommendation.code).toBe(0);
+      expect(JSON.parse(scopedRecommendation.out)).toMatchObject({
+        tag: "api/v1.0.1",
+        recommendation: {
+          level: "patch",
+          reasons: [expect.objectContaining({ summary: "fix(api): correct output" })],
+        },
+      });
+      const allowed = await capture(() =>
+        runNext(dir, { tag: "api", requireChanges: true, json: true }),
+      );
+      expect(allowed.code).toBe(0);
+      expect(JSON.parse(allowed.out).tag).toBe("api/v1.0.1");
+
+      const created = await capture(() =>
+        runCreate(dir, { tag: "api", requireChanges: true }),
+      );
+      expect(created.code).toBe(0);
+      expect(execFileSync("git", ["tag", "-l", "api/v1.0.1"], { cwd: dir }).toString()).toBe(
+        "api/v1.0.1\n",
+      );
     });
 
     it("next with unknown --tag exits 1 with Available: in stderr", async () => {
@@ -619,6 +746,24 @@ describe("command runners (in-process)", () => {
       await runInit(dir, { yes: true });
       const r = await capture(() => runCreate(dir, {}));
       expect(r.out).toMatch(/git push origin v0\.1\.0/);
+    });
+
+    it("creates the Conventional Commit recommended version", async () => {
+      await runInit(dir, { yes: true });
+      tag(dir, "v1.0.0");
+      await writeFile(path.join(dir, "fix.txt"), "fixed\n", "utf8");
+      execFileSync("git", ["add", "fix.txt"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat: add a workflow"], {
+        cwd: dir,
+      });
+
+      const r = await capture(() => runCreate(dir, { fromCommits: true }));
+
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/recommend a minor release/);
+      expect(execFileSync("git", ["tag", "-l", "v1.1.0"], { cwd: dir }).toString()).toBe(
+        "v1.1.0\n",
+      );
     });
 
     it("create with unknown --tag exits 1 with Available: in stderr", async () => {

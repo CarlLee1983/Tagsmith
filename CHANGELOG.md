@@ -8,6 +8,24 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-23
+
+### Added
+
+- Remote-aware release planning: `next --fetch` and `create --push` fetch tags
+  before choosing a version; `--remote` selects a different remote.
+- `check --strict` validates proposed versions against local tag history and
+  exposes its mode in JSON output.
+- Reusable GitHub Action that builds Tagsmith, fetches tags, and runs strict
+  validation in CI.
+- Monorepo-scoped tag lines with `workspace` and `--require-changes`, so a
+  package releases only after its own committed changes; Conventional Commit
+  recommendations are scoped to that workspace too.
+- `next --from-commits` and `create --from-commits` for SemVer bump
+  recommendations based on Conventional Commits.
+- JSON Schema support for both multi-line and legacy configuration shapes,
+  including workspace-scoped lines.
+
 ## [0.3.1] - 2026-06-11
 
 ### Fixed
@@ -66,7 +84,8 @@ to [Semantic Versioning](https://semver.org/).
 - A three-layer core/git/CLI architecture and unit, integration, and CLI E2E
   test coverage.
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.0...v0.2.1

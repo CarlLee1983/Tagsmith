@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -127,6 +128,21 @@ describe("tagsmith CLI (built binary)", () => {
     const r = run(dir, ["next"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(/v0\.1\.0/);
+  });
+
+  it("derives a SemVer bump from Conventional Commits through the built CLI", () => {
+    run(dir, ["init", "--yes"]);
+    run(dir, ["create", "--set-version", "1.0.0"]);
+    writeFileSync(path.join(dir, "feature.txt"), "enabled\n");
+    execFileSync("git", ["add", "feature.txt"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "feat: add an API"], { cwd: dir });
+
+    const r = run(dir, ["next", "--from-commits", "--json"]);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.stdout)).toMatchObject({
+      tag: "v1.1.0",
+      recommendation: { level: "minor" },
+    });
   });
 
   it("shows a welcome banner and first step in top-level help", () => {

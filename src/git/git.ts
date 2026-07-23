@@ -44,6 +44,89 @@ export async function listTags(opts: GitOptions): Promise<string[]> {
     .filter((l) => l.length > 0);
 }
 
+export interface FetchTagsOptions extends GitOptions {
+  /** Remote to synchronise from; defaults to the standard `origin` remote. */
+  remote?: string;
+}
+
+/** Fetch all tags from a remote before making a release decision. */
+export async function fetchTags(opts: FetchTagsOptions): Promise<void> {
+  await git(["fetch", "--tags", opts.remote ?? "origin"], opts.cwd);
+}
+
+export interface ListCommitMessagesOptions extends GitOptions {
+  /** Exclude commits reachable from this ref, such as the latest release tag. */
+  from?: string;
+  /** Limit history to this repository-relative workspace path. */
+  workspace?: string;
+}
+
+export interface GitCommitMessage {
+  id: string;
+  message: string;
+}
+
+/** List complete commit messages since a ref, newest first. */
+export async function listCommitMessages(
+  opts: ListCommitMessagesOptions,
+): Promise<GitCommitMessage[]> {
+  const range = opts.from === undefined ? "HEAD" : `${opts.from}..HEAD`;
+  const args = ["log", "--format=%H%x00%B%x00", range];
+  if (opts.workspace !== undefined) {
+    args.push("--", workspacePathspec(opts.workspace));
+  }
+  const out = await git(args, opts.cwd);
+  const fields = out.split("\0");
+  const commits: GitCommitMessage[] = [];
+  for (let i = 0; i + 1 < fields.length; i += 2) {
+    const id = fields[i]?.trim() ?? "";
+    if (id === "") continue;
+    commits.push({ id, message: fields[i + 1] ?? "" });
+  }
+  return commits;
+}
+
+export interface WorkspaceChangesOptions extends GitOptions {
+  /** Workspace path relative to the repository root. */
+  workspace: string;
+  /** Latest tag for the workspace; omit it to inspect the full history. */
+  since?: string | null;
+}
+
+/**
+ * Return whether a workspace has changed since a tag. A workspace without a
+ * prior tag is considered changed once it has any committed history.
+ */
+export async function hasWorkspaceChanges(
+  opts: WorkspaceChangesOptions,
+): Promise<boolean> {
+  if (opts.since === undefined || opts.since === null) {
+    const result = await tryGit(
+      ["log", "-1", "--format=%H", "--", workspacePathspec(opts.workspace)],
+      opts.cwd,
+    );
+    if (result.code !== 0) {
+      throw new GitError(`Could not inspect workspace "${opts.workspace}".`);
+    }
+    return result.stdout.trim() !== "";
+  }
+
+  const result = await tryGit(
+    ["diff", "--quiet", `${opts.since}..HEAD`, "--", workspacePathspec(opts.workspace)],
+    opts.cwd,
+  );
+  if (result.code === 0) return false;
+  if (result.code === 1) return true;
+  throw new GitError(
+    `Could not inspect workspace "${opts.workspace}" since "${opts.since}".`,
+  );
+}
+
+/** Keep configured workspace paths rooted at the worktree, not the caller's cwd. */
+function workspacePathspec(workspace: string): string {
+  return `:(top,literal)${workspace}`;
+}
+
 export interface CreateTagOptions extends GitOptions {
   name: string;
   /** When provided, creates an annotated tag with this message. */

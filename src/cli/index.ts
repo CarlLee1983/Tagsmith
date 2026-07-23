@@ -80,9 +80,12 @@ program
   .option(
     "-l, --level <level>",
     "bump level: major | minor | patch | prerelease | auto",
-    "patch",
   )
   .option("--json", "output JSON")
+  .option("--fetch", "fetch tags from the remote before calculating")
+  .option("--remote <name>", "remote used by --fetch (default: origin)")
+  .option("--from-commits", "derive a semver bump from Conventional Commits")
+  .option("--require-changes", "require changes in the selected line's workspace")
   .option(
     "-t, --tag <name>",
     "operate on the named tag line (default: the config's default line)",
@@ -97,6 +100,7 @@ program
     "Validate tags against the spec; with no args, lint all repo tags",
   )
   .option("--json", "output JSON")
+  .option("--strict", "also reject candidate versions already present in the repository")
   .option("-t, --tag <name>", "validate only against the named tag line")
   .action(async (tags: string[], opts) => {
     process.exitCode = await runCheck(process.cwd(), tags, opts);
@@ -108,7 +112,6 @@ const createCommand = program
   .option(
     "-l, --level <level>",
     "bump level: major | minor | patch | prerelease | auto",
-    "patch",
   )
   .option(
     "--set-version <version>",
@@ -116,6 +119,10 @@ const createCommand = program
   )
   .option("-m, --message <message>", "annotate the tag with a message")
   .option("--push", "push the tag after creating")
+  .option("--fetch", "fetch tags from the remote before calculating")
+  .option("--remote <name>", "remote used by --fetch and --push (default: origin)")
+  .option("--from-commits", "derive a semver bump from Conventional Commits")
+  .option("--require-changes", "require changes in the selected line's workspace")
   .option("--dry-run", "preview without creating")
   .option("--allow-out-of-order", "permit a version not greater than latest")
   .option(

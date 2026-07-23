@@ -55,6 +55,8 @@ export interface TagLine {
   initialVersion: string;
   /** 建立時是否預設 push。 */
   push: boolean;
+  /** Optional repository-relative workspace path for monorepo release checks. */
+  workspace?: string;
 }
 
 /** 內部正規化後的設定:一律為多線結構。 */

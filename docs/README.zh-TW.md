@@ -109,6 +109,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 | `model` | ✓ | 版本模型物件（見下） |
 | `initialVersion` | ✓ | 無既有合規 tag 時的起點 |
 | `push` | | `create` 是否預設 push（預設 `false`） |
+| `workspace` | | monorepo 套件的 repo 相對路徑，供 `--require-changes` 判斷變更 |
 
 頂層選填欄位：
 
@@ -132,6 +133,35 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；現有使用者**零修改**即可繼續使用。
 
 可在檔案加上 `"$schema": "./node_modules/@carllee1983/tagsmith/schema.json"` 取得編輯器補全與驗證。
+
+### Monorepo workspace
+
+在 tag 線加上 `workspace`，即可把該線限制在某個套件目錄。既有的 `--tag` 讓每個
+workspace 維持獨立版本序列；搭配 `--require-changes`，只有該套件自上個 tag 後有已提交
+的變更時才會允許預覽或建立 release。
+若使用 `--from-commits`，Tagsmith 也只會採納有變更該 workspace 的 commits。
+
+```json
+{
+  "tags": [
+    {
+      "name": "api",
+      "workspace": "packages/api",
+      "pattern": "api/v{version}",
+      "model": { "type": "semver" },
+      "initialVersion": "0.1.0"
+    }
+  ],
+  "default": "api"
+}
+```
+
+```bash
+tagsmith next --tag api --require-changes
+tagsmith create --tag api --require-changes --push
+```
+
+`workspace` 必須是 repo 內的相對路徑；未設定時，既有單一 repo 的設定與行為完全不變。
 
 ### 三種版本模型
 
@@ -255,6 +285,7 @@ Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；
 | 旗標 | 說明 |
 |------|------|
 | `--json` | 輸出結構化 JSON |
+| `--strict` | 對指定候選 tag 比對既有版本；不帶 tag 時嚴格稽核全部本地 tag |
 | `-t, --tag <name>` | 只對指定線驗證 |
 
 ```jsonc
@@ -264,7 +295,8 @@ Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；
     { "raw": "v1.2.3",           "line": "app",     "ok": true,  "anomaly": null },
     { "raw": "release/2026.06.1","line": "release",  "ok": true,  "anomaly": null },
     { "raw": "junk",             "line": null,        "ok": false, "anomaly": "pattern-mismatch" }
-  ]
+  ],
+  "strict": false
 }
 ```
 
@@ -276,11 +308,15 @@ Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；
 |------|------|
 | `-l, --level <level>` | `major` \| `minor` \| `patch` \| `prerelease` \| `auto`（預設 `patch`） |
 | `--json` | 輸出 JSON |
+| `--fetch` | 計算前從 remote 取回 tags |
+| `--remote <name>` | `--fetch` 使用的 remote（預設 `origin`） |
+| `--from-commits` | 僅限 SemVer；依 Conventional Commits 建議遞增等級，不能與 `--level` 合用 |
+| `--require-changes` | 要求指定線的 `workspace` 自最新 tag 後有已提交變更 |
 | `-t, --tag <name>` | 操作指定線（預設：設定檔的 `default` 線） |
 
 ```jsonc
 // tagsmith next --level minor --json
-{ "tag": "v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false, "line": "app" }
+{ "tag": "v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false, "line": "app", "workspace": null }
 ```
 
 ### `tagsmith create`
@@ -293,6 +329,10 @@ Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；
 | `--set-version <version>` | 改用指定版本，而非自動遞增 |
 | `-m, --message <message>` | 建立 annotated tag |
 | `--push` | 建立後推送（覆寫該線的 `push` 設定） |
+| `--fetch` | 建立前從 remote 取回 tags；`--push` 時預設自動執行 |
+| `--remote <name>` | `--fetch` 與 `--push` 使用的 remote（預設 `origin`） |
+| `--from-commits` | 僅限 SemVer；依 Conventional Commits 決定遞增等級，不能與 `--level` / `--set-version` 合用 |
+| `--require-changes` | 要求指定線的 `workspace` 自最新 tag 後有已提交變更 |
 | `--dry-run` | 只預覽，不建立 |
 | `--allow-out-of-order` | 允許版本不大於現有最大值 |
 | `-t, --tag <name>` | 操作指定線（預設：設定檔的 `default` 線） |
@@ -323,7 +363,45 @@ tagsmith next --tag release --json
 
 # 多線：一次檢視所有線的 tag 狀況（含無主 tag）
 tagsmith list --all
+
+# 從 origin 讀取最新 tag 後再預覽，避免使用過期本地歷史
+tagsmith next --fetch
+
+# 由 Conventional Commits 建議下一個 SemVer 版本
+tagsmith next --from-commits
+
+# monorepo：只有 api 套件有變更才建立其 tag
+tagsmith create --tag api --require-changes --push
 ```
+
+## 遠端安全與 CI
+
+`create --push` 在計算版本前會預設從 `origin` 取回 tags，避免過期的本地 clone 重複使用
+隊友已發佈的版本。預覽時可加 `--fetch`；以 `--remote <name>` 改用其他 remote。fetch 後若
+仍有其他人搶先推送，Git 仍會拒絕 push；此時請重新 fetch 後重新計算版本。
+`--dry-run` 預設維持本地操作；需要完全比照遠端狀態時請明確加上 `--fetch`。
+
+`tagsmith check --strict <tag>` 會額外將候選版本與 repo 既有歷史比對；不帶 tag 時會嚴格
+稽核全部本地 tag。JSON 的 `line: null` 表示沒有任何設定的 pattern 符合；若 pattern 符合但
+版本無法解析，仍會標示其所屬線。
+
+本 repo 也可直接作為可重用 GitHub Action：自行安裝並建置 Tagsmith、預設 fetch tags，最後
+執行 `check --json --strict`。
+
+```yaml
+name: Validate tags
+on: [push, pull_request]
+
+jobs:
+  tags:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: CarlLee1983/Tagsmith@main # 正式環境請固定 release tag 或 commit SHA。
+```
+
+若設定檔不在 repo 根目錄，或已自行同步 tags，可設定：
+`with: { working-directory: packages/api, fetch-tags: "false" }`。
 
 ## 搭配 husky 守 tag
 

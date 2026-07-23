@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import {
   ensureRepo,
   listTags,
+  listCommitMessages,
+  hasWorkspaceChanges,
   createTag,
+  fetchTags,
+  pushTag,
   GitError,
 } from "../src/git/git.js";
 import { writeConfig, loadConfig } from "../src/core/config.js";
@@ -79,6 +83,175 @@ describe("git integration", () => {
     await createTag({ cwd: dir, name: "v1.1.0", message: "release 1.1" });
     const tags = await listTags({ cwd: dir });
     expect(tags.sort()).toEqual(["v1.0.0", "v1.1.0"]);
+  });
+
+  it("fetches tags created by another clone", async () => {
+    const remote = await mkdtemp(path.join(tmpdir(), "tagsmith-remote-"));
+    const peer = await mkdtemp(path.join(tmpdir(), "tagsmith-peer-"));
+    try {
+      execFileSync("git", ["init", "--bare", "-q", remote]);
+      execFileSync("git", ["remote", "add", "origin", remote], { cwd: dir });
+      execFileSync("git", ["push", "-q", "-u", "origin", "HEAD"], { cwd: dir });
+      execFileSync("git", ["clone", "-q", remote, peer]);
+      execFileSync("git", ["config", "user.email", "peer@example.com"], { cwd: peer });
+      execFileSync("git", ["config", "user.name", "Peer"], { cwd: peer });
+      execFileSync("git", ["tag", "v1.2.3"], { cwd: peer });
+      execFileSync("git", ["push", "-q", "origin", "v1.2.3"], { cwd: peer });
+
+      expect(await listTags({ cwd: dir })).toEqual([]);
+      await fetchTags({ cwd: dir });
+      expect(await listTags({ cwd: dir })).toEqual(["v1.2.3"]);
+    } finally {
+      await rm(remote, { recursive: true, force: true });
+      await rm(peer, { recursive: true, force: true });
+    }
+  });
+
+  it("lists complete commit messages after a tag or commit ref", async () => {
+    const from = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: dir,
+      encoding: "utf8",
+    }).trim();
+    await writeFile(path.join(dir, "feature.txt"), "enabled\n", "utf8");
+    execFileSync("git", ["add", "feature.txt"], { cwd: dir });
+    execFileSync(
+      "git",
+      ["commit", "-q", "-m", "feat(cli): add a release preview", "-m", "More detail."],
+      { cwd: dir },
+    );
+
+    expect(await listCommitMessages({ cwd: dir, from })).toEqual([
+      expect.objectContaining({ message: "feat(cli): add a release preview\n\nMore detail.\n" }),
+    ]);
+  });
+
+  it("scopes commit history to a repository-relative workspace", async () => {
+    await mkdir(path.join(dir, "packages", "api"), { recursive: true });
+    await mkdir(path.join(dir, "packages", "web"), { recursive: true });
+    await writeFile(path.join(dir, "packages", "api", "index.ts"), "export {};\n", "utf8");
+    execFileSync("git", ["add", "packages/api/index.ts"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "feat(api): initial package"], { cwd: dir });
+    execFileSync("git", ["tag", "api/v1.0.0"], { cwd: dir });
+
+    await writeFile(path.join(dir, "packages", "web", "index.ts"), "export {};\n", "utf8");
+    execFileSync("git", ["add", "packages/web/index.ts"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "feat(web)!: redesign client"], { cwd: dir });
+    await writeFile(path.join(dir, "packages", "api", "index.ts"), "export const api = true;\n", "utf8");
+    execFileSync("git", ["add", "packages/api/index.ts"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "fix(api): correct export"], { cwd: dir });
+
+    expect(
+      await listCommitMessages({
+        cwd: dir,
+        from: "api/v1.0.0",
+        workspace: "packages/api",
+      }),
+    ).toEqual([expect.objectContaining({ message: "fix(api): correct export\n" })]);
+  });
+
+  it("detects changes within a workspace since its latest tag", async () => {
+    const workspace = path.join(dir, "packages", "api");
+    await mkdir(workspace, { recursive: true });
+    await writeFile(path.join(workspace, "index.ts"), "export {};\n", "utf8");
+    execFileSync("git", ["add", "packages/api/index.ts"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "feat(api): initial package"], {
+      cwd: dir,
+    });
+    execFileSync("git", ["tag", "api/v1.0.0"], { cwd: dir });
+
+    await writeFile(path.join(dir, "README.md"), "other package change\n", "utf8");
+    execFileSync("git", ["add", "README.md"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "docs: explain packages"], { cwd: dir });
+    expect(
+      await hasWorkspaceChanges({ cwd: dir, workspace: "packages/api", since: "api/v1.0.0" }),
+    ).toBe(false);
+
+    await writeFile(path.join(workspace, "index.ts"), "export const api = true;\n", "utf8");
+    execFileSync("git", ["add", "packages/api/index.ts"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "fix(api): correct export"], {
+      cwd: dir,
+    });
+    expect(
+      await hasWorkspaceChanges({ cwd: dir, workspace: "packages/api", since: "api/v1.0.0" }),
+    ).toBe(true);
+    expect(
+      await hasWorkspaceChanges({ cwd: workspace, workspace: "packages/api", since: "api/v1.0.0" }),
+    ).toBe(true);
+  });
+
+  it("uses a selected remote before previewing and pushing a release", async () => {
+    const remote = await mkdtemp(path.join(tmpdir(), "tagsmith-remote-"));
+    const peer = await mkdtemp(path.join(tmpdir(), "tagsmith-peer-"));
+    try {
+      execFileSync("git", ["init", "--bare", "-q", remote]);
+      execFileSync("git", ["remote", "add", "upstream", remote], { cwd: dir });
+      execFileSync("git", ["push", "-q", "-u", "upstream", "HEAD"], { cwd: dir });
+      execFileSync("git", ["clone", "-q", remote, peer]);
+      execFileSync("git", ["config", "user.email", "peer@example.com"], { cwd: peer });
+      execFileSync("git", ["config", "user.name", "Peer"], { cwd: peer });
+      execFileSync("git", ["tag", "v1.2.3"], { cwd: peer });
+      execFileSync("git", ["push", "-q", "origin", "v1.2.3"], { cwd: peer });
+
+      await writeConfig(dir, {
+        lines: [
+          {
+            name: "default",
+            pattern: "v{version}",
+            model: { type: "semver" },
+            initialVersion: "0.1.0",
+            push: true,
+          },
+        ],
+        default: "default",
+      });
+
+      const preview = await capture(() =>
+        runNext(dir, { fetch: true, remote: "upstream", json: true }),
+      );
+      expect(preview.code).toBe(0);
+      expect(JSON.parse(preview.stdout).tag).toBe("v1.2.4");
+
+      const created = await capture(() => runCreate(dir, { remote: "upstream" }));
+      expect(created.code).toBe(0);
+      expect(created.stdout).toMatch(/Fetched tags from upstream/);
+      expect(created.stdout).toMatch(/Pushed v1\.2\.4/);
+      expect(
+        execFileSync("git", ["ls-remote", "--tags", remote, "v1.2.4"], {
+          encoding: "utf8",
+        }),
+      ).toMatch(/refs\/tags\/v1\.2\.4/);
+    } finally {
+      await rm(remote, { recursive: true, force: true });
+      await rm(peer, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves a clear Git error when a tag wins the post-fetch push race", async () => {
+    const remote = await mkdtemp(path.join(tmpdir(), "tagsmith-remote-"));
+    const peer = await mkdtemp(path.join(tmpdir(), "tagsmith-peer-"));
+    try {
+      execFileSync("git", ["init", "--bare", "-q", remote]);
+      execFileSync("git", ["remote", "add", "upstream", remote], { cwd: dir });
+      execFileSync("git", ["push", "-q", "-u", "upstream", "HEAD"], { cwd: dir });
+      execFileSync("git", ["clone", "-q", remote, peer]);
+      execFileSync("git", ["config", "user.email", "peer@example.com"], { cwd: peer });
+      execFileSync("git", ["config", "user.name", "Peer"], { cwd: peer });
+
+      await fetchTags({ cwd: dir, remote: "upstream" });
+      await writeFile(path.join(peer, "peer.txt"), "peer release\n", "utf8");
+      execFileSync("git", ["add", "peer.txt"], { cwd: peer });
+      execFileSync("git", ["commit", "-q", "-m", "feat: release from peer"], { cwd: peer });
+      execFileSync("git", ["tag", "v1.2.4"], { cwd: peer });
+      execFileSync("git", ["push", "-q", "origin", "v1.2.4"], { cwd: peer });
+      await createTag({ cwd: dir, name: "v1.2.4" });
+
+      await expect(pushTag({ cwd: dir, name: "v1.2.4", remote: "upstream" })).rejects.toBeInstanceOf(
+        GitError,
+      );
+    } finally {
+      await rm(remote, { recursive: true, force: true });
+      await rm(peer, { recursive: true, force: true });
+    }
   });
 
   it("end-to-end: config → plan next → create → plan again", async () => {

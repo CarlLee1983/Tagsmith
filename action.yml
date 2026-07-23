@@ -1,0 +1,41 @@
+name: Tagsmith
+description: Validate repository tags against a Tagsmith specification.
+author: Carl Lee
+branding:
+  icon: tag
+  color: blue
+
+inputs:
+  working-directory:
+    description: Repository directory containing .tagsmith.json.
+    required: false
+    default: .
+  fetch-tags:
+    description: Fetch tags from origin before validating.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+    - name: Install Tagsmith
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci --ignore-scripts
+    - name: Build Tagsmith
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm run build
+    - name: Fetch repository tags
+      if: inputs.fetch-tags == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: git fetch --tags origin
+    - name: Validate tags
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: node "$GITHUB_ACTION_PATH/dist/cli/index.js" check --json --strict

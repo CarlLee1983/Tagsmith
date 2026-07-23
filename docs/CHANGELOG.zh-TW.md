@@ -7,6 +7,20 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-23
+
+### 新增
+
+- **遠端 release preflight**：`next --fetch` 與 `create --push` 在計算版本前同步 tags；
+  可用 `--remote` 選擇其他 remote。
+- `check --strict`：指定候選 tag 時比對本地歷史版本，JSON 也會標示是否啟用嚴格模式。
+- **可重用 GitHub Action**：自行建置 Tagsmith、同步 tags，並在 CI 執行嚴格驗證。
+- **Monorepo workspace**：tag 線可設定 `workspace`；`--require-changes` 確保套件有自己的
+  已提交變更才可 release，Conventional Commit 建議也只讀取該 workspace 的歷史。
+- `next --from-commits` / `create --from-commits`：僅限 SemVer，依 Conventional Commits
+  建議遞增等級。
+- JSON Schema 現同時支援多線與舊扁平設定，並包含 workspace-scoped line。
+
 ## [0.3.1] - 2026-06-11
 
 ### 修正
@@ -94,7 +108,8 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/CarlLee1983/Tagsmith/compare/v0.2.0...v0.2.1

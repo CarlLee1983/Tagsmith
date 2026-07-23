@@ -42,7 +42,9 @@ npm run build            # 編譯到 dist/
 內部 `TagsmithConfig { lines: TagLine[], default: string }` 結構：
 
 - **多線格式**（新）：頂層 `tags` 陣列，每個元素為一條 `TagLine`（`name`、`pattern`、
-  `model`、`initialVersion`、`push`），選填頂層 `default`（省略取 `tags[0].name`）。
+  `model`、`initialVersion`、`push`、選填 `workspace`），選填頂層 `default`（省略取
+  `tags[0].name`）。`workspace` 必須是 repo 內相對路徑，供 `--require-changes` 做
+  monorepo release 檢查。
 - **扁平格式**（舊，仍相容）：頂層直接放 `pattern`、`model`、`initialVersion`、`push`；
   載入時自動包成 `name: "default"` 的單線結構，行為與改版前完全一致。
 
