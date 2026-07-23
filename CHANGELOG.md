@@ -8,6 +8,23 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-23
+
+### Added
+
+- Optional `artifact: { "type": "package-json" }` per tag line. `audit` now
+  verifies every conforming historical tag against the manifest committed at
+  that tag; `create --enforce-policy` can require its candidate's artifact
+  version to match through `releasePolicy.requireArtifactVersion`.
+- Configurable, ordered `commitPolicy.rules` for team-specific Conventional
+  Commit types, scopes, breaking-change handling, and ignored commits.
+  Recommendations expose the matching rule for each contributing commit.
+
+### Changed
+
+- Artifact reads stay internal and Git-ref based; Tagsmith never edits package
+  manifests, lockfiles, tags, or published artifacts.
+
 ## [0.7.0] - 2026-07-23
 
 ### Added
@@ -132,7 +149,8 @@ to [Semantic Versioning](https://semver.org/).
 - A three-layer core/git/CLI architecture and unit, integration, and CLI E2E
   test coverage.
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0

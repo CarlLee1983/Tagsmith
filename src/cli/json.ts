@@ -14,6 +14,7 @@ export interface JsonDiagnostic {
   line?: string;
   lines?: string[];
   matches?: string[];
+  path?: string;
 }
 
 export interface JsonEnvelope<T> {

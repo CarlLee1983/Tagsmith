@@ -438,6 +438,38 @@ describe("command runners (in-process)", () => {
       expect(json.data.remote).toEqual({ checked: false });
     });
 
+    it("audits a package.json at each historical tag instead of the current worktree", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          artifact: { type: "package-json" },
+        }),
+        "utf8",
+      );
+      await writeFile(path.join(dir, "package.json"), '{"version":"1.0.0"}\n', "utf8");
+      execFileSync("git", ["add", "package.json"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat: publish package metadata"], { cwd: dir });
+      tag(dir, "v1.0.0");
+      // A pending manifest update is deliberately not evidence about the old tag.
+      await writeFile(path.join(dir, "package.json"), '{"version":"1.1.0"}\n', "utf8");
+
+      const r = await capture(() => runAudit(dir, { json: true }));
+      const json = jsonOutput(r.out);
+
+      expect(r.code).toBe(0);
+      expect(json.data.artifacts).toEqual([
+        expect.objectContaining({
+          tag: "v1.0.0",
+          expectedVersion: "1.0.0",
+          actualVersion: "1.0.0",
+          status: "pass",
+        }),
+      ]);
+    });
+
     it("keeps JSON output parseable when auditing outside a repository", async () => {
       const outside = await mkdtemp(path.join(tmpdir(), "tagsmith-no-repo-"));
       try {
@@ -694,6 +726,41 @@ describe("command runners (in-process)", () => {
         data: {
         tag: "v1.1.0",
         recommendation: { level: "minor" },
+        },
+      });
+    });
+
+    it("applies the configured commit policy and exposes matched-rule evidence", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          commitPolicy: {
+            rules: [
+              { name: "product", type: "product", release: "minor" },
+              { type: "feat", ignore: true },
+            ],
+          },
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+      await writeFile(path.join(dir, "feature.txt"), "enabled\n", "utf8");
+      execFileSync("git", ["add", "feature.txt"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "product(cli): add policy support"], {
+        cwd: dir,
+      });
+
+      const r = await capture(() => runNext(dir, { fromCommits: true, json: true }));
+
+      expect(r.code).toBe(0);
+      expect(jsonOutput(r.out).data).toMatchObject({
+        tag: "v1.1.0",
+        recommendation: {
+          level: "minor",
+          reasons: [expect.objectContaining({ rule: "product", level: "minor" })],
         },
       });
     });
@@ -1186,6 +1253,42 @@ describe("command runners (in-process)", () => {
       );
       expect(ready.code).toBe(0);
       expect(ready.out).toMatch(/PASS.*will be annotated/);
+    });
+
+    it("enforces a candidate package.json version only under the artifact release policy", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          artifact: { type: "package-json" },
+          releasePolicy: { requireArtifactVersion: true },
+        }),
+        "utf8",
+      );
+      await writeFile(path.join(dir, "package.json"), '{"version":"0.2.0"}\n', "utf8");
+      execFileSync("git", ["add", "package.json"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "feat: prepare package"], { cwd: dir });
+
+      const unguarded = await capture(() => runCreate(dir, { dryRun: true }));
+      expect(unguarded.code).toBe(0);
+
+      const guarded = await capture(() =>
+        runCreate(dir, { dryRun: true, enforcePolicy: true }),
+      );
+      expect(guarded.code).toBe(1);
+      expect(guarded.err).toMatch(/artifact-version-mismatch/);
+      expect(guarded.out).toMatch(/FAIL.*does not match/);
+
+      await writeFile(path.join(dir, "package.json"), '{"version":"0.1.0"}\n', "utf8");
+      execFileSync("git", ["add", "package.json"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "fix: align package version"], { cwd: dir });
+      const ready = await capture(() =>
+        runCreate(dir, { dryRun: true, enforcePolicy: true }),
+      );
+      expect(ready.code).toBe(0);
+      expect(ready.out).toMatch(/PASS.*matches candidate version/);
     });
 
     it("blocks a dirty worktree under an enforced release policy", async () => {

@@ -53,6 +53,7 @@ export async function runPlan(cwd: string, flags: PlanFlags): Promise<number> {
           commits: [],
           fromCommits: flags.fromCommits === true,
           requireChanges: flags.requireChanges,
+          commitPolicy: config.commitPolicy,
           blockers: assignmentBlockers,
         }));
         continue;
@@ -79,6 +80,7 @@ export async function runPlan(cwd: string, flags: PlanFlags): Promise<number> {
         commits,
         fromCommits: flags.fromCommits === true,
         requireChanges: flags.requireChanges,
+        commitPolicy: config.commitPolicy,
       }));
     }
 
@@ -157,6 +159,9 @@ function printLine(line: ReleasePlanLine): void {
   switch (line.status) {
     case "ready":
       info(`${line.line}: ready → ${line.candidate!.tag} (${line.bump}; ${line.commits.length} commit(s))`);
+      for (const reason of line.recommendation?.reasons ?? []) {
+        info(`  ${reason.id.slice(0, 12)} [${reason.rule}] ${reason.level}: ${reason.summary}`);
+      }
       return;
     case "skipped":
       if (line.changed) {

@@ -111,6 +111,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 | `initialVersion` | ✓ | 無既有合規 tag 時的起點 |
 | `push` | | `create` 是否預設 push（預設 `false`） |
 | `workspace` | | monorepo 套件的 repo 相對路徑，供 `--require-changes` 判斷變更 |
+| `artifact` | | `{ "type": "package-json" }`；檢查此 line 的 manifest version |
 
 頂層選填欄位：
 
@@ -118,6 +119,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 |------|------|
 | `default` | 預設操作線名；省略時取 `tags[0].name` |
 | `releasePolicy` | 可選的本機發版前置條件；只有 `create --enforce-policy` 才強制執行 |
+| `commitPolicy` | 選配、依順序的 Conventional Commit → release 規則 |
 
 ### 舊格式（仍相容）
 
@@ -168,6 +170,32 @@ tagsmith plan --all --from-commits
 `plan --all` 會讀取所有已設定的 line：有 `workspace` 的 line 只檢查該套件，未設定者則
 檢查整個 repository。
 
+### Artifact version 一致性
+
+在 tag line 加上 `artifact: { "type": "package-json" }`，即可把該 line 的 package
+manifest 作為版本來源。Tagsmith 會讀取 `workspace/package.json`；沒有 `workspace` 時讀取
+repository root 的 `package.json`。其中的 `version` 必須能由該 line 的版本模型解析，且必須
+完全等於不含 tag prefix / suffix 的 tag version。
+
+```json tagsmith-config
+{
+  "tags": [{
+    "name": "api",
+    "workspace": "packages/api",
+    "pattern": "api/v{version}",
+    "model": { "type": "semver" },
+    "initialVersion": "0.1.0",
+    "artifact": { "type": "package-json" }
+  }],
+  "releasePolicy": { "requireArtifactVersion": true }
+}
+```
+
+`audit` 讀取的是每個歷史 tag 當時的 manifest，所以本機尚未提交的版本調整不會讓舊 release
+失效。設定 policy 後，`create --enforce-policy` 會讀取 candidate target commit，並在
+manifest 缺失、格式錯誤、version 無效或不一致時停止。Tagsmith 不會改寫 manifest、lockfile
+或 artifact。
+
 ### Release readiness
 
 頂層選配 `releasePolicy` 可把本機發版前置條件提交進 repository。未設定時完全關閉；
@@ -183,7 +211,8 @@ tagsmith plan --all --from-commits
     "requireCleanWorktree": true,
     "requireAnnotatedTag": true,
     "requireHeadTag": true,
-    "signature": "required"
+    "signature": "required",
+    "requireArtifactVersion": true
   }
 }
 ```
@@ -194,9 +223,34 @@ tagsmith plan --all --from-commits
   `--sign --message "…"`，並由已設定的 Git signing key 實際簽章。
 - `requireHeadTag` 只檢查**這次候選 tag**的 target，不追溯舊 tag；若刻意要選其他
   commit，可用 `--target <ref>`，但 enforce 時會依 policy 拒絕或允許。
+- `requireArtifactVersion` 要求選定 line 設定支援的 artifact，並讓 candidate target 中的
+  version 與 candidate tag 一致。
 
 `tagsmith audit` 顯示目前 branch / worktree 的 readiness；沒有 `--fetch` 時絕不存取
 remote。`tagsmith create --enforce-policy` 會在任何 Git 變更前，以同一組規則檢查具體候選 tag。
+
+### Commit policy
+
+未設定 `commitPolicy` 時，既有預設語意不變：breaking change 為 `major`、`feat` 為
+`minor`、`fix` / `perf` 為 `patch`。需要採用團隊自己的分類時，可依順序定義 rules；第一個
+命中的 rule 生效。rule 可用精確的 `type`、`scope`、`breaking` 篩選，並設定一個 `release`
+等級或 `ignore: true`。設定 custom policy 後，未命中的 commit 會被忽略。
+
+```json tagsmith-config
+{
+  "commitPolicy": {
+    "rules": [
+      { "name": "breaking", "breaking": true, "release": "major" },
+      { "name": "product work", "type": "product", "release": "minor" },
+      { "name": "website docs", "type": "docs", "scope": "website", "release": "patch" },
+      { "type": "docs", "ignore": true }
+    ]
+  }
+}
+```
+
+`next --from-commits`、`create --from-commits` 與 `plan --all --from-commits` 的 recommendation
+都會保留相關 commit ID、摘要與命中的 rule。
 
 ### 三種版本模型
 
@@ -303,6 +357,10 @@ worktree 的 readiness。annotation、signature、target 是候選 tag 的條件
 `create --enforce-policy` 會判定；JSON 請使用穩定的 `release-*` diagnostic code。
 預設不查 remote；必須明確傳入 `--fetch` 才會同步並在輸出標記 remote 已檢查。
 
+對設定 `package-json` artifact 的 line，audit 也會讀取每個合規歷史 tag 當時的 manifest。
+`artifact-package-json-missing`、`artifact-package-json-malformed`、`artifact-version-missing`、
+`artifact-version-invalid` 與 `artifact-version-mismatch` 都是穩定的 error code。
+
 ```bash
 tagsmith audit
 tagsmith audit --json
@@ -342,7 +400,7 @@ tagsmith audit --fetch --remote origin
         "changed": true,
         "bump": "minor",
         "candidate": { "tag": "api/v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false },
-        "recommendation": { "level": "minor", "reasons": [{ "id": "…", "level": "minor", "summary": "feat(api): add search" }] },
+        "recommendation": { "level": "minor", "reasons": [{ "id": "…", "level": "minor", "rule": "default.feat", "summary": "feat(api): add search" }] },
         "commits": [{ "id": "…", "summary": "feat(api): add search" }],
         "blockers": [],
         "anomalies": []

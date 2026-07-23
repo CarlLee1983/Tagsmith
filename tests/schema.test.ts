@@ -32,9 +32,16 @@ describe("JSON schema", () => {
     }
     expect(multi.properties.releasePolicy.$ref).toBe("#/definitions/releasePolicy");
     expect(legacy.properties.releasePolicy.$ref).toBe("#/definitions/releasePolicy");
+    expect(multi.properties.commitPolicy.$ref).toBe("#/definitions/commitPolicy");
+    expect(legacy.properties.commitPolicy.$ref).toBe("#/definitions/commitPolicy");
+    expect(schema.definitions.tagLine.properties.artifact.$ref).toBe("#/definitions/artifact");
+    expect(legacy.properties.artifact.$ref).toBe("#/definitions/artifact");
+    expect(schema.definitions.artifact.properties.type.const).toBe("package-json");
+    expect(schema.definitions.commitPolicy.properties.rules.minItems).toBe(1);
     expect(schema.definitions.releasePolicy.properties.signature.enum).toEqual([
       "optional", "required",
     ]);
+    expect(schema.definitions.releasePolicy.properties.requireArtifactVersion.default).toBe(false);
   });
 
   it("publishes the versioned JSON command envelope contract", async () => {
@@ -48,5 +55,6 @@ describe("JSON schema", () => {
     expect(schema.properties.schemaVersion.const).toBe(1);
     expect(schema.properties.command.enum).toEqual(["list", "check", "next", "audit", "plan"]);
     expect(schema.definitions.diagnostic.required).toEqual(["code", "severity", "message"]);
+    expect(schema.definitions.diagnostic.properties.path.type).toBe("string");
   });
 });

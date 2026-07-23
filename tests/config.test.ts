@@ -46,6 +46,7 @@ describe("parseConfig (legacy flat)", () => {
       requireAnnotatedTag: false,
       requireHeadTag: false,
       signature: "optional",
+      requireArtifactVersion: false,
     });
   });
 
@@ -128,6 +129,39 @@ describe("parseConfig (multi-line)", () => {
     });
 
     expect(cfg.lines[0].workspace).toBe("packages/api");
+  });
+
+  it("parses package.json artifacts and ordered commit policies", () => {
+    const cfg = parseConfig({
+      tags: [
+        {
+          name: "api",
+          workspace: "packages/api",
+          pattern: "api/v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          artifact: { type: "package-json" },
+        },
+      ],
+      commitPolicy: {
+        rules: [
+          { name: "features", type: "feature", release: "minor" },
+          { type: "docs", ignore: true },
+        ],
+      },
+    });
+
+    expect(cfg.lines[0]?.artifact).toEqual({ type: "package-json" });
+    expect(cfg.commitPolicy?.rules).toHaveLength(2);
+  });
+
+  it("rejects a commit rule without exactly one outcome", () => {
+    expect(() => parseConfig({
+      pattern: "v{version}",
+      model: { type: "semver" },
+      initialVersion: "0.1.0",
+      commitPolicy: { rules: [{ type: "feat" }] },
+    })).toThrow(ConfigError);
   });
 
   it("rejects a workspace path that escapes the repository", () => {

@@ -1,4 +1,5 @@
 import type { ReleasePolicy } from "../types.js";
+import type { ArtifactVersionReport } from "../core/artifact.js";
 import {
   evaluateReleaseReadiness,
   type ReleaseCandidate,
@@ -18,6 +19,7 @@ export async function inspectReleaseReadiness(
   policy: ReleasePolicy | undefined,
   candidate?: ReleaseCandidate,
   remote?: { checked: boolean; name?: string },
+  artifact?: ArtifactVersionReport,
 ): Promise<RepositoryReleaseReadiness> {
   const [branch, worktreeClean, head] = await Promise.all([
     currentBranch({ cwd }),
@@ -30,6 +32,15 @@ export async function inspectReleaseReadiness(
     head,
     ...(candidate ? { candidate } : {}),
     ...(remote ? { remote } : {}),
+    ...(artifact ? {
+      artifact: {
+        configured: artifact.configured,
+        ok: artifact.status === "pass",
+        message: artifact.status === "pass"
+          ? `Artifact "${artifact.path}" matches candidate version "${artifact.expectedVersion}".`
+          : artifact.diagnostics[0]?.message ?? "No artifact version is configured.",
+      },
+    } : {}),
   };
   return { ...evaluateReleaseReadiness(policy, facts), facts };
 }

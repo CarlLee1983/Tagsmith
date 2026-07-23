@@ -10,6 +10,7 @@ export const releasePolicySchema = z.object({
   requireAnnotatedTag: z.boolean().default(false),
   requireHeadTag: z.boolean().default(false),
   signature: z.enum(["optional", "required"]).default("optional"),
+  requireArtifactVersion: z.boolean().default(false),
 });
 
 export class ReleasePolicyError extends Error {}

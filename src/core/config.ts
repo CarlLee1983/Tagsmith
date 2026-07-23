@@ -1,11 +1,18 @@
 import { readFile, writeFile, access } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import type { TagLine, TagsmithConfig, ModelConfig } from "../types.js";
+import type {
+  ArtifactConfig,
+  CommitPolicy,
+  ModelConfig,
+  TagLine,
+  TagsmithConfig,
+} from "../types.js";
 import { DEFAULT_SEMVER_LINE } from "./defaults.js";
 import { hasConformingTag, inferPattern } from "./infer.js";
 import { createModel } from "./models/index.js";
 import { releasePolicySchema } from "./release-policy/schema.js";
+import { commitPolicySchema } from "./commit-policy/schema.js";
 
 export const CONFIG_FILENAME = ".tagsmith.json";
 
@@ -43,6 +50,10 @@ const workspaceSchema = z
     message: "workspace must be a relative path inside the repository",
   });
 
+const artifactSchema = z.object({
+  type: z.literal("package-json"),
+});
+
 const lineSchema = z.object({
   name: z.string().min(1),
   pattern: patternSchema,
@@ -50,12 +61,14 @@ const lineSchema = z.object({
   initialVersion: z.string().min(1),
   push: z.boolean().default(false),
   workspace: workspaceSchema.optional(),
+  artifact: artifactSchema.optional(),
 });
 
 const multiConfigSchema = z.object({
   tags: z.array(lineSchema).min(1),
   default: z.string().optional(),
   releasePolicy: releasePolicySchema.optional(),
+  commitPolicy: commitPolicySchema.optional(),
 });
 
 const legacyConfigSchema = z.object({
@@ -64,7 +77,9 @@ const legacyConfigSchema = z.object({
   initialVersion: z.string().min(1),
   push: z.boolean().default(false),
   workspace: workspaceSchema.optional(),
+  artifact: artifactSchema.optional(),
   releasePolicy: releasePolicySchema.optional(),
+  commitPolicy: commitPolicySchema.optional(),
 });
 
 export class ConfigError extends Error {}
@@ -105,6 +120,7 @@ export function parseConfig(raw: unknown): TagsmithConfig {
       result.data.tags as TagLine[],
       result.data.default,
       result.data.releasePolicy,
+      result.data.commitPolicy as CommitPolicy | undefined,
     );
   }
 
@@ -117,6 +133,7 @@ export function parseConfig(raw: unknown): TagsmithConfig {
     initialVersion: result.data.initialVersion,
     push: result.data.push,
     workspace: result.data.workspace,
+    artifact: result.data.artifact as ArtifactConfig | undefined,
   };
   return {
     lines: [line],
@@ -124,6 +141,9 @@ export function parseConfig(raw: unknown): TagsmithConfig {
     ...(result.data.releasePolicy === undefined
       ? {}
       : { releasePolicy: result.data.releasePolicy }),
+    ...(result.data.commitPolicy === undefined
+      ? {}
+      : { commitPolicy: result.data.commitPolicy as CommitPolicy }),
   };
 }
 
@@ -131,6 +151,7 @@ function finalizeMulti(
   lines: TagLine[],
   def: string | undefined,
   releasePolicy: TagsmithConfig["releasePolicy"],
+  commitPolicy: TagsmithConfig["commitPolicy"],
 ): TagsmithConfig {
   const names = lines.map((l) => l.name);
   const dupes = names.filter((n, i) => names.indexOf(n) !== i);
@@ -150,6 +171,7 @@ function finalizeMulti(
     lines,
     default: resolvedDefault,
     ...(releasePolicy === undefined ? {} : { releasePolicy }),
+    ...(commitPolicy === undefined ? {} : { commitPolicy }),
   };
 }
 
@@ -213,11 +235,15 @@ export async function writeConfig(
       initialVersion: l.initialVersion,
       push: l.push,
       ...(l.workspace === undefined ? {} : { workspace: l.workspace }),
+      ...(l.artifact === undefined ? {} : { artifact: l.artifact }),
     })),
     default: config.default,
     ...(config.releasePolicy === undefined
       ? {}
       : { releasePolicy: config.releasePolicy }),
+    ...(config.commitPolicy === undefined
+      ? {}
+      : { commitPolicy: config.commitPolicy }),
   };
   // Never persist a broken config: validate the on-disk shape first.
   parseConfig(fileShape);

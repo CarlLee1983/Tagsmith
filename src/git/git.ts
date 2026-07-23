@@ -44,6 +44,14 @@ export async function listTags(opts: GitOptions): Promise<string[]> {
     .filter((l) => l.length > 0);
 }
 
+/** Read a text file as it existed at a commit or tag; null means that path is absent there. */
+export async function readFileAtRef(
+  opts: GitOptions & { ref: string; path: string },
+): Promise<string | null> {
+  const result = await tryGit(["show", `${opts.ref}:${opts.path}`], opts.cwd);
+  return result.code === 0 ? result.stdout : null;
+}
+
 export interface FetchTagsOptions extends GitOptions {
   /** Remote to synchronise from; defaults to the standard `origin` remote. */
   remote?: string;

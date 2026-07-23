@@ -8,6 +8,7 @@ const strictPolicy: ReleasePolicy = {
   requireAnnotatedTag: true,
   requireHeadTag: true,
   signature: "required",
+  requireArtifactVersion: true,
 };
 
 describe("evaluateReleaseReadiness", () => {
@@ -22,11 +23,12 @@ describe("evaluateReleaseReadiness", () => {
         annotated: true,
         signed: true,
       },
+      artifact: { configured: true, ok: true, message: "Artifact matches." },
     });
 
     expect(report.ok).toBe(true);
     expect(report.checks.map((check) => check.status)).toEqual([
-      "pass", "pass", "pass", "pass", "pass",
+      "pass", "pass", "pass", "pass", "pass", "pass",
     ]);
     expect(report.diagnostics).toEqual([]);
   });
@@ -42,6 +44,7 @@ describe("evaluateReleaseReadiness", () => {
         annotated: false,
         signed: false,
       },
+      artifact: { configured: true, ok: false, message: "Artifact does not match." },
     });
 
     expect(report.ok).toBe(false);
@@ -51,7 +54,21 @@ describe("evaluateReleaseReadiness", () => {
       "release-annotation-required",
       "release-target-not-head",
       "release-signature-required",
+      "release-artifact-version-invalid",
     ]);
+  });
+
+  it("requires an artifact configuration only when that policy guardrail is enabled", () => {
+    const report = evaluateReleaseReadiness(strictPolicy, {
+      branch: "main",
+      worktreeClean: true,
+      head: "abc123",
+      candidate: { tag: "v0.6.0", target: "abc123", annotated: true, signed: true },
+    });
+
+    expect(report.diagnostics).toContainEqual(expect.objectContaining({
+      code: "release-artifact-not-configured",
+    }));
   });
 
   it("audits repository-level facts without inventing a candidate tag", () => {
@@ -63,7 +80,7 @@ describe("evaluateReleaseReadiness", () => {
 
     expect(report.ok).toBe(true);
     expect(report.checks.slice(2).map((check) => check.status)).toEqual([
-      "not-applicable", "not-applicable", "not-applicable",
+      "not-applicable", "not-applicable", "not-applicable", "not-applicable",
     ]);
   });
 

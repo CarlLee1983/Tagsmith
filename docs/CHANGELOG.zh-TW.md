@@ -7,6 +7,21 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-23
+
+### 新增
+
+- 每條 tag line 可選配 `artifact: { "type": "package-json" }`。`audit` 會讀取每個
+  合規歷史 tag 當時提交的 manifest；`releasePolicy.requireArtifactVersion` 可讓
+  `create --enforce-policy` 要求 candidate 的 artifact version 與 tag version 一致。
+- 可設定、依宣告順序比對的 `commitPolicy.rules`，支援團隊自訂 Conventional Commit
+  type、scope、breaking change 與 ignore 規則；每個 recommendation 都會列出命中的規則。
+
+### 變更
+
+- artifact 讀取維持內部、以 Git ref 為準；Tagsmith 不會修改 package manifest、lockfile、
+  tag 或已發布產物。
+
 ## [0.7.0] - 2026-07-23
 
 ### 新增
@@ -153,7 +168,8 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.4.0...v0.5.0

@@ -122,6 +122,7 @@ with `--tag <name>`.
 | `initialVersion` | Yes | Starting point when no valid tag exists |
 | `push` | No | Whether `create` pushes by default (`false`) |
 | `workspace` | No | Repository-relative monorepo path used by `--require-changes` |
+| `artifact` | No | `{ "type": "package-json" }` version source for this line |
 | `default` | No | Default line; defaults to the first item in `tags` |
 
 The legacy single-line format remains supported. It is normalized internally as
@@ -174,6 +175,34 @@ unchanged. `plan --all` reads every configured line: it scopes lines with a
 `workspace` to that package and evaluates an unscoped line against the entire
 repository.
 
+### Artifact version consistency
+
+Add `artifact: { "type": "package-json" }` to a line to make its package
+manifest a version source. Tagsmith reads `workspace/package.json`, or the
+repository-root `package.json` for an unscoped line. The `version` must parse
+under the line's version model and exactly match the tag version without its
+tag-pattern prefix or suffix.
+
+```json tagsmith-config
+{
+  "tags": [{
+    "name": "api",
+    "workspace": "packages/api",
+    "pattern": "api/v{version}",
+    "model": { "type": "semver" },
+    "initialVersion": "0.1.0",
+    "artifact": { "type": "package-json" }
+  }],
+  "releasePolicy": { "requireArtifactVersion": true }
+}
+```
+
+`audit` reads the manifest from each historical tag, so an in-progress local
+version bump cannot invalidate a previous release. With the policy flag,
+`create --enforce-policy` reads the selected target commit and blocks a missing,
+malformed, invalid, or mismatched manifest. Tagsmith never edits manifests,
+lockfiles, or artifacts.
+
 ### Release readiness
 
 An optional top-level `releasePolicy` records local, pre-create guardrails. It
@@ -190,7 +219,8 @@ the policy **and** pass `--enforce-policy`.
     "requireCleanWorktree": true,
     "requireAnnotatedTag": true,
     "requireHeadTag": true,
-    "signature": "required"
+    "signature": "required",
+    "requireArtifactVersion": true
   }
 }
 ```
@@ -200,6 +230,8 @@ staged, unstaged, or untracked files. `requireAnnotatedTag` needs `--message`;
 `signature: "required"` needs `--sign --message "…"` and a Git signing key.
 `requireHeadTag` applies to the candidate being created, not old tags; use
 `--target <ref>` only when an intentional non-`HEAD` target is needed.
+`requireArtifactVersion` requires the selected line to configure a supported
+artifact and makes its version match the candidate tag at the candidate target.
 
 Use `tagsmith audit` to inspect the configured branch/worktree rules. It makes
 no remote request unless `--fetch` is explicit. `tagsmith create --enforce-policy`
@@ -257,6 +289,31 @@ recommends `patch`. For a workspace-scoped line, the recommendation considers
 only commits that touch that workspace. `create` also accepts `--message`, `--set-version`,
 `--push`, `--dry-run`, and `--allow-out-of-order`.
 
+### Commit policy
+
+When `commitPolicy` is absent, those default Conventional Commit rules remain
+unchanged. To use a team-specific taxonomy, declare ordered rules. The first
+matching rule wins; a rule can filter exact `type`, `scope`, and `breaking`
+status, then set one `release` level or `ignore: true`. Unmatched commits are
+ignored when a custom policy is configured.
+
+```json tagsmith-config
+{
+  "commitPolicy": {
+    "rules": [
+      { "name": "breaking", "breaking": true, "release": "major" },
+      { "name": "product work", "type": "product", "release": "minor" },
+      { "name": "website docs", "type": "docs", "scope": "website", "release": "patch" },
+      { "type": "docs", "ignore": true }
+    ]
+  }
+}
+```
+
+`next --from-commits`, `create --from-commits`, and `plan --all --from-commits`
+all include the contributing commit IDs, summaries, and matching rule in their
+recommendation evidence.
+
 ### Planning monorepo releases
 
 `tagsmith plan --all` is a read-only multi-line decision. Every configured
@@ -290,7 +347,7 @@ tags.
         "changed": true,
         "bump": "minor",
         "candidate": { "tag": "api/v1.3.0", "version": "1.3.0", "fromVersion": "1.2.0", "fresh": false },
-        "recommendation": { "level": "minor", "reasons": [{ "id": "…", "level": "minor", "summary": "feat(api): add search" }] },
+        "recommendation": { "level": "minor", "reasons": [{ "id": "…", "level": "minor", "rule": "default.feat", "summary": "feat(api): add search" }] },
         "commits": [{ "id": "…", "summary": "feat(api): add search" }],
         "blockers": [],
         "anomalies": []
@@ -313,6 +370,10 @@ duplicate versions, tags that no configured line owns, and tags whose pattern
 matches more than one line. An ambiguous tag is not silently assigned according
 to configuration order: `next` and `create` refuse to use a line affected by
 that history until it is resolved.
+
+For a line with a package-json artifact, audit also checks the exact manifest
+stored at every conforming historical tag. It reports stable errors for a
+missing or malformed manifest, missing/invalid version, or version mismatch.
 
 Every `--json` result from `list`, `check`, `next`, `audit`, and `plan` uses the same
 versioned envelope. Read command-specific fields from `data`, and make

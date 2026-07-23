@@ -10,6 +10,7 @@ import { color, info, printError, warn } from "./ui.js";
 import { printNextStepsAfterNext } from "./guidance.js";
 import { requireWorkspaceChanges } from "./workspace.js";
 import { resolveReleaseInput } from "./release-input.js";
+import { printBumpRecommendation } from "./conventional.js";
 import { resolveConfig } from "./resolve-config.js";
 import { configMetadata, printImplicitConfigNotice } from "./implicit.js";
 import { emitJson, emitJsonError, type JsonDiagnostic } from "./json.js";
@@ -47,6 +48,7 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
       lineTags,
       level: flags.level,
       fromCommits: flags.fromCommits,
+      commitPolicy: config.commitPolicy,
     });
     const plan = planNext(line, model, lineTags, level);
     if (flags.requireChanges) {
@@ -80,9 +82,7 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
     printImplicitConfigNotice(resolved, flags.json);
 
     if (recommendation) {
-      info(
-        `Conventional Commits recommend a ${recommendation.level} release (${recommendation.reasons.length} matching commit(s)).`,
-      );
+      printBumpRecommendation(recommendation);
     }
 
     if (plan.fresh) {

@@ -1,5 +1,5 @@
 import { planNext } from "../core/plan.js";
-import type { BumpLevel, TagLine, VersionModel } from "../types.js";
+import type { BumpLevel, CommitPolicy, TagLine, VersionModel } from "../types.js";
 import { recommendBumpFromCommits } from "./conventional.js";
 import type { BumpRecommendation } from "../core/conventional.js";
 
@@ -17,6 +17,7 @@ export interface ResolveReleaseInputOptions {
   lineTags: readonly string[];
   level?: string;
   fromCommits?: boolean;
+  commitPolicy?: CommitPolicy;
 }
 
 /**
@@ -38,6 +39,7 @@ export async function resolveReleaseInput(
     opts.cwd,
     opts.line,
     baseline.analysis.latest?.raw ?? null,
+    opts.commitPolicy,
   );
   if (recommendation.level === null) {
     throw new Error("No release-worthy Conventional Commits found since the latest tag.");

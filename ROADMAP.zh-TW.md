@@ -33,10 +33,10 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 
 | 順序 | 版本目標 | 主題 | 對使用者的結果 |
 | --- | --- | --- | --- |
-| 1 | `0.5` | 可稽核的 tag 規格與自動化合約 | 已完成（待發布）：可可靠地發現設定歧義，並將結果交給 CI 或腳本。 |
-| 2 | `0.6` | Release Readiness | 團隊可宣告、稽核並選擇性強制執行「現在可否發版」。 |
-| 3 | `0.7` | Monorepo release planning | 多 workspace 可先得到完整發版計畫，再由既有流程逐一建立 tag。 |
-| 4 | `0.8` | Artifact 與 commit-policy 一致性 | tag、發行產物版本與 commit 規則可在建立前交叉驗證。 |
+| 1 | `0.5` | 可稽核的 tag 規格與自動化合約 | 已發佈：可可靠地發現設定歧義，並將結果交給 CI 或腳本。 |
+| 2 | `0.6` | Release Readiness | 已發佈：團隊可宣告、稽核並選擇性強制執行「現在可否發版」。 |
+| 3 | `0.7` | Monorepo release planning | 已發佈：多 workspace 可先得到完整發版計畫，再由既有流程逐一建立 tag。 |
+| 4 | `0.8` | Artifact 與 commit-policy 一致性 | 完成，待發行：tag、發行產物版本與 commit 規則可在建立前交叉驗證。 |
 | 未排程 | 擴充機制與進階信任 | 只在真實使用需求成立後處理。 |
 
 版本號代表開發順序，不代表承諾的發布日期；每階段開始前仍應以實際 issue 或設計
@@ -119,7 +119,7 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 
 ## 0.7 — Monorepo release planning
 
-> 實作狀態：完成，待發行 `0.7.0`。設計與實作紀錄見
+> 實作狀態：已發佈 `0.7.0`。設計與實作紀錄見
 > [`2026-07-23-monorepo-release-planning-design.md`](docs/history/designs/2026-07-23-monorepo-release-planning-design.md)
 > 與 [`2026-07-23-monorepo-release-planning.md`](docs/history/plans/2026-07-23-monorepo-release-planning.md)。
 
@@ -152,6 +152,10 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 - 取代 Changesets、semantic-release、npm publish 或其他發布編排工具。
 
 ## 0.8 — Artifact 與 commit-policy 一致性
+
+> 實作狀態：完成，待發行 `0.8.0`。設計與實作紀錄見
+> [`2026-07-23-artifact-commit-policy-design.md`](docs/history/designs/2026-07-23-artifact-commit-policy-design.md)
+> 與 [`2026-07-23-artifact-commit-policy.md`](docs/history/plans/2026-07-23-artifact-commit-policy.md)。
 
 ### 目標
 

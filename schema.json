@@ -21,7 +21,8 @@
           "description": "Default tag-line name; defaults to the first line."
         },
         "mergePolicy": { "$ref": "#/definitions/mergePolicy" },
-        "releasePolicy": { "$ref": "#/definitions/releasePolicy" }
+        "releasePolicy": { "$ref": "#/definitions/releasePolicy" },
+        "commitPolicy": { "$ref": "#/definitions/commitPolicy" }
       }
     },
     {
@@ -50,8 +51,10 @@
           ],
           "description": "Repository-relative workspace path for --require-changes."
         },
+        "artifact": { "$ref": "#/definitions/artifact" },
         "mergePolicy": { "$ref": "#/definitions/mergePolicy" },
-        "releasePolicy": { "$ref": "#/definitions/releasePolicy" }
+        "releasePolicy": { "$ref": "#/definitions/releasePolicy" },
+        "commitPolicy": { "$ref": "#/definitions/commitPolicy" }
       }
     }
   ],
@@ -123,7 +126,8 @@
         "push": {
           "type": "boolean",
           "description": "Default push behaviour for `tagsmith create`."
-        }
+        },
+        "artifact": { "$ref": "#/definitions/artifact" }
       }
     },
     "mergePolicy": {
@@ -191,7 +195,54 @@
           "enum": ["optional", "required"],
           "default": "optional",
           "description": "Whether create must request a signed tag from Git."
+        },
+        "requireArtifactVersion": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require create --enforce-policy to match the candidate tag version with its configured artifact."
         }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "description": "A built-in release artifact checked against tag versions.",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "const": "package-json",
+          "description": "Read version from workspace/package.json, or package.json at repository root when workspace is omitted."
+        }
+      }
+    },
+    "commitPolicy": {
+      "type": "object",
+      "description": "Optional ordered Conventional Commit release rules. When present, unmatched commits are ignored.",
+      "additionalProperties": false,
+      "required": ["rules"],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/commitRule" }
+        }
+      }
+    },
+    "commitRule": {
+      "type": "object",
+      "description": "First matching rule wins. Set exactly one of release or ignore: true.",
+      "additionalProperties": false,
+      "oneOf": [
+        { "required": ["release"], "not": { "required": ["ignore"] } },
+        { "required": ["ignore"], "not": { "required": ["release"] } }
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 },
+        "breaking": { "type": "boolean" },
+        "release": { "enum": ["major", "minor", "patch"] },
+        "ignore": { "const": true }
       }
     }
   }

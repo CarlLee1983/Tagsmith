@@ -149,6 +149,29 @@ describe("tagsmith CLI (built binary)", () => {
     ]);
   });
 
+  it("audits historical package-json artifact versions through the built binary", () => {
+    writeFileSync(
+      path.join(dir, ".tagsmith.json"),
+      JSON.stringify({
+        pattern: "v{version}",
+        model: { type: "semver" },
+        initialVersion: "0.1.0",
+        artifact: { type: "package-json" },
+      }),
+    );
+    writeFileSync(path.join(dir, "package.json"), '{"version":"1.0.0"}\n');
+    execFileSync("git", ["add", "package.json"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "-m", "feat: add package metadata"], { cwd: dir });
+    execFileSync("git", ["tag", "v1.0.0"], { cwd: dir });
+
+    const r = run(dir, ["audit", "--json"]);
+
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.stdout).data.artifacts).toEqual([
+      expect.objectContaining({ tag: "v1.0.0", status: "pass", actualVersion: "1.0.0" }),
+    ]);
+  });
+
   it("next works without a config using implicit defaults", () => {
     const r = run(dir, ["next"]);
     expect(r.code).toBe(0);

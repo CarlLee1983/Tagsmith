@@ -1,4 +1,6 @@
 import { auditTags } from "../core/audit.js";
+import type { ArtifactVersionReport } from "../core/artifact.js";
+import { createModel } from "../core/models/index.js";
 import { ensureRepo, fetchTags, listTags } from "../git/git.js";
 import { emitJson, emitJsonError } from "./json.js";
 import { configMetadata, printImplicitConfigNotice } from "./implicit.js";
@@ -8,6 +10,7 @@ import {
 } from "./release-readiness.js";
 import { printError, info, success, warn } from "./ui.js";
 import { resolveConfig } from "./resolve-config.js";
+import { inspectArtifactVersion, printArtifactVersion } from "./artifact.js";
 
 export interface AuditFlags {
   json?: boolean;
@@ -22,6 +25,7 @@ export async function runAudit(cwd: string, flags: AuditFlags): Promise<number> 
     await ensureRepo({ cwd });
     if (flags.fetch) await fetchTags({ cwd, remote: flags.remote });
     const report = auditTags(await listTags({ cwd }), resolved.config.lines);
+    const artifacts = await auditArtifactVersions(cwd, resolved.config.lines, report.lines);
     const remote = flags.fetch
       ? { checked: true, name: flags.remote ?? "origin" }
       : { checked: false };
@@ -31,8 +35,15 @@ export async function runAudit(cwd: string, flags: AuditFlags): Promise<number> 
       undefined,
       remote,
     );
-    const diagnostics = [...report.diagnostics, ...releaseReadiness.diagnostics];
-    const ok = report.ok && releaseReadiness.ok;
+    const artifactDiagnostics = artifacts.flatMap((artifact) => artifact.diagnostics);
+    const diagnostics = [
+      ...report.diagnostics,
+      ...artifactDiagnostics,
+      ...releaseReadiness.diagnostics,
+    ];
+    const ok = report.ok
+      && artifacts.every((artifact) => artifact.status !== "fail")
+      && releaseReadiness.ok;
 
     if (flags.json) {
       emitJson(
@@ -40,6 +51,7 @@ export async function runAudit(cwd: string, flags: AuditFlags): Promise<number> 
         {
           config: configMetadata(resolved),
           ...report,
+          artifacts,
           ok,
           releaseReadiness,
           remote,
@@ -63,6 +75,7 @@ export async function runAudit(cwd: string, flags: AuditFlags): Promise<number> 
       if (diagnostic.severity === "error") printError(prefix);
       else warn(prefix);
     }
+    for (const artifact of artifacts) printArtifactVersion(artifact);
     printReleaseReadiness(releaseReadiness);
 
     if (ok) {
@@ -76,4 +89,29 @@ export async function runAudit(cwd: string, flags: AuditFlags): Promise<number> 
     else printError(err);
     return 1;
   }
+}
+
+/** Audit immutable manifest content at each historical, conforming tag. */
+async function auditArtifactVersions(
+  cwd: string,
+  lines: Parameters<typeof auditTags>[1],
+  auditLines: ReturnType<typeof auditTags>["lines"],
+): Promise<ArtifactVersionReport[]> {
+  const reports: ArtifactVersionReport[] = [];
+  for (const line of lines) {
+    if (line.artifact === undefined) continue;
+    const model = createModel(line.model);
+    const history = auditLines.find((item) => item.line === line.name);
+    for (const tag of history?.conforming ?? []) {
+      reports.push(await inspectArtifactVersion(
+        cwd,
+        line,
+        model,
+        tag.tag,
+        tag.version,
+        tag.tag,
+      ));
+    }
+  }
+  return reports;
 }

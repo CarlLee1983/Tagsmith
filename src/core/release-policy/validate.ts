@@ -10,7 +10,8 @@ export interface ReleaseReadinessCheck {
     | "release-remote"
     | "release-annotation"
     | "release-target"
-    | "release-signature";
+    | "release-signature"
+    | "release-artifact";
   status: ReleaseCheckStatus;
   message: string;
 }
@@ -22,7 +23,9 @@ export interface ReleaseReadinessDiagnostic {
     | "release-remote-not-checked"
     | "release-annotation-required"
     | "release-target-not-head"
-    | "release-signature-required";
+    | "release-signature-required"
+    | "release-artifact-not-configured"
+    | "release-artifact-version-invalid";
   severity: "error" | "warning";
   message: string;
 }
@@ -42,6 +45,8 @@ export interface ReleaseReadinessFacts {
   candidate?: ReleaseCandidate;
   /** Present only when a caller intentionally checked a named remote. */
   remote?: { checked: boolean; name?: string };
+  /** Candidate artifact evidence gathered by the CLI from the target commit. */
+  artifact?: { configured: boolean; ok: boolean; message: string };
 }
 
 export interface ReleaseReadiness {
@@ -146,6 +151,11 @@ export function evaluateReleaseReadiness(
         status: "not-applicable",
         message: "Signature is checked when create supplies a candidate tag.",
       },
+      {
+        code: "release-artifact",
+        status: "not-applicable",
+        message: "Artifact version is checked when create supplies a candidate tag.",
+      },
     );
   } else {
     evaluateCandidate(policy, facts, checks, fail);
@@ -228,6 +238,32 @@ function evaluateCandidate(
       "release-signature-required",
       `Candidate "${candidate.tag}" must be signed; pass --sign with a configured Git signing key.`,
     );
+  }
+
+  if (!policy.requireArtifactVersion) {
+    checks.push({
+      code: "release-artifact",
+      status: "not-applicable",
+      message: "An artifact version match is not required.",
+    });
+  } else if (!facts.artifact || !facts.artifact.configured) {
+    fail(
+      "release-artifact",
+      "release-artifact-not-configured",
+      `Candidate "${candidate.tag}" requires an artifact version check; configure artifact: { type: "package-json" } on its tag line.`,
+    );
+  } else if (!facts.artifact.ok) {
+    fail(
+      "release-artifact",
+      "release-artifact-version-invalid",
+      facts.artifact.message,
+    );
+  } else {
+    checks.push({
+      code: "release-artifact",
+      status: "pass",
+      message: facts.artifact.message,
+    });
   }
 
 }

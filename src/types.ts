@@ -44,6 +44,36 @@ export type ModelConfig =
   | CalverModelConfig
   | BuildModelConfig;
 
+/** The only built-in release artifact source in 0.8. */
+export interface PackageJsonArtifact {
+  type: "package-json";
+}
+
+export type ArtifactConfig = PackageJsonArtifact;
+
+export type CommitReleaseLevel = "major" | "minor" | "patch";
+
+/** One ordered Conventional Commit classification rule. */
+export interface CommitPolicyRule {
+  /** Optional human label included in recommendation evidence. */
+  name?: string;
+  /** Exact Conventional Commit type, e.g. feat or docs. */
+  type?: string;
+  /** Exact Conventional Commit scope, e.g. website. */
+  scope?: string;
+  /** Match only breaking (`!` or BREAKING CHANGE footer) when specified. */
+  breaking?: boolean;
+  /** Release level selected by this rule; mutually exclusive with ignore. */
+  release?: CommitReleaseLevel;
+  /** Explicitly exclude a matching commit from release recommendations. */
+  ignore?: true;
+}
+
+/** Team-owned Conventional Commit classification, evaluated in declaration order. */
+export interface CommitPolicy {
+  rules: CommitPolicyRule[];
+}
+
 /** 一條獨立的 tag 線:有自己的 pattern、版本模型、起始版本與 push 設定。 */
 export interface TagLine {
   /** 線名,唯一,用於 CLI 選線。 */
@@ -57,6 +87,8 @@ export interface TagLine {
   push: boolean;
   /** Optional repository-relative workspace path for monorepo release checks. */
   workspace?: string;
+  /** Optional manifest whose version must agree with this tag line. */
+  artifact?: ArtifactConfig;
 }
 
 /** Optional local guardrails that decide whether a candidate tag may be created. */
@@ -71,6 +103,8 @@ export interface ReleasePolicy {
   requireHeadTag: boolean;
   /** Require Git to create a cryptographically signed tag. */
   signature: "optional" | "required";
+  /** Require a configured artifact to agree with a candidate created under policy. */
+  requireArtifactVersion: boolean;
 }
 
 /** 內部正規化後的設定:一律為多線結構。 */
@@ -80,6 +114,8 @@ export interface TagsmithConfig {
   default: string;
   /** Optional release-time guardrails; absent means current behaviour is unchanged. */
   releasePolicy?: ReleasePolicy;
+  /** Optional Conventional Commit mapping; absent keeps Tagsmith defaults. */
+  commitPolicy?: CommitPolicy;
 }
 
 /** A tag parsed against the configured pattern + model. */

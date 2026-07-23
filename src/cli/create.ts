@@ -18,12 +18,14 @@ import { color, info, printError, success, warn } from "./ui.js";
 import { printNextStepsAfterCreate } from "./guidance.js";
 import { requireWorkspaceChanges } from "./workspace.js";
 import { resolveReleaseInput } from "./release-input.js";
+import { printBumpRecommendation } from "./conventional.js";
 import { resolveConfig } from "./resolve-config.js";
 import { printImplicitConfigNotice } from "./implicit.js";
 import {
   inspectReleaseReadiness,
   printReleaseReadiness,
 } from "./release-readiness.js";
+import { inspectArtifactVersion, printArtifactVersion } from "./artifact.js";
 
 export interface CreateFlags {
   level?: string;
@@ -88,6 +90,7 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
         lineTags,
         level: flags.level,
         fromCommits: flags.fromCommits,
+        commitPolicy: config.commitPolicy,
       });
       const plan = planNext(line, model, lineTags, level);
       if (plan.fresh && plan.analysis.anomalies.length > 0) {
@@ -96,9 +99,7 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
         );
       }
       if (recommendation) {
-        info(
-          `Conventional Commits recommend a ${recommendation.level} release (${recommendation.reasons.length} matching commit(s)).`,
-        );
+        printBumpRecommendation(recommendation);
       }
       tagName = plan.tag;
     }
@@ -112,12 +113,23 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
     const target = await revParseCommit({ cwd }, targetRef);
 
     if (flags.enforcePolicy) {
+      const artifact = await inspectArtifactVersion(
+        cwd,
+        line,
+        model,
+        tagName,
+        pattern.extract(tagName)!,
+        target,
+      );
+      if (artifact.configured || config.releasePolicy?.requireArtifactVersion) {
+        printArtifactVersion(artifact);
+      }
       const readiness = await inspectReleaseReadiness(cwd, config.releasePolicy, {
         tag: tagName,
         target,
         annotated: flags.message !== undefined || flags.sign === true,
         signed: flags.sign === true,
-      });
+      }, undefined, artifact);
       printReleaseReadiness(readiness);
       if (!readiness.ok) return 1;
     }

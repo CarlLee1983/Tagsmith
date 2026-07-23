@@ -1,4 +1,4 @@
-import type { BumpLevel } from "../types.js";
+import type { BumpLevel, CommitPolicy } from "../types.js";
 
 export interface CommitMessage {
   /** Stable Git object id, supplied by the Git adapter. */
@@ -11,6 +11,8 @@ export interface BumpReason {
   id: string;
   level: Exclude<BumpLevel, "auto" | "prerelease">;
   summary: string;
+  /** Default or configured rule that classified this commit. */
+  rule: string;
 }
 
 export interface BumpRecommendation {
@@ -32,11 +34,17 @@ const RANK: Record<Exclude<BumpLevel, "auto" | "prerelease">, number> = {
  */
 export function recommendConventionalBump(
   commits: readonly CommitMessage[],
+  policy?: CommitPolicy,
 ): BumpRecommendation {
   const reasons = commits.flatMap((commit) => {
-    const level = classifyCommit(commit.message);
-    if (level === null) return [];
-    return [{ id: commit.id, level, summary: firstLine(commit.message) }];
+    const classification = classifyCommit(commit.message, policy);
+    if (classification === null) return [];
+    return [{
+      id: commit.id,
+      level: classification.level,
+      summary: firstLine(commit.message),
+      rule: classification.rule,
+    }];
   });
 
   const level = reasons.reduce<Exclude<BumpLevel, "auto" | "prerelease"> | null>(
@@ -50,17 +58,45 @@ export function recommendConventionalBump(
 
 function classifyCommit(
   message: string,
-): Exclude<BumpLevel, "auto" | "prerelease"> | null {
+  policy?: CommitPolicy,
+): { level: Exclude<BumpLevel, "auto" | "prerelease">; rule: string } | null {
   const header = firstLine(message);
-  const match = /^([a-z][a-z0-9-]*)(?:\([^\r\n)]*\))?(!)?:\s+/.exec(header);
+  const match = /^([a-z][a-z0-9-]*)(?:\(([^\r\n)]*)\))?(!)?:\s+/.exec(header);
   if (match === null) return null;
 
-  if (match[2] === "!" || /(?:^|\r?\n)BREAKING[ -]CHANGE:\s+\S/m.test(message)) {
-    return "major";
+  const parsed = {
+    type: match[1]!,
+    scope: match[2] ?? null,
+    breaking: match[3] === "!" || /(?:^|\r?\n)BREAKING[ -]CHANGE:\s+\S/m.test(message),
+  };
+
+  if (policy !== undefined) return classifyWithPolicy(parsed, policy);
+
+  if (parsed.breaking) {
+    return { level: "major", rule: "default.breaking" };
   }
-  if (match[1] === "feat") return "minor";
-  if (match[1] === "fix" || match[1] === "perf") return "patch";
+  if (parsed.type === "feat") return { level: "minor", rule: "default.feat" };
+  if (parsed.type === "fix" || parsed.type === "perf") {
+    return { level: "patch", rule: `default.${parsed.type}` };
+  }
   return null;
+}
+
+function classifyWithPolicy(
+  commit: { type: string; scope: string | null; breaking: boolean },
+  policy: CommitPolicy,
+): { level: Exclude<BumpLevel, "auto" | "prerelease">; rule: string } | null {
+  const index = policy.rules.findIndex((rule) =>
+    (rule.type === undefined || rule.type === commit.type)
+    && (rule.scope === undefined || rule.scope === commit.scope)
+    && (rule.breaking === undefined || rule.breaking === commit.breaking));
+  if (index === -1) return null;
+  const rule = policy.rules[index]!;
+  if (rule.ignore === true) return null;
+  return {
+    level: rule.release!,
+    rule: rule.name ?? `commitPolicy.rules[${index}]`,
+  };
 }
 
 function firstLine(message: string): string {

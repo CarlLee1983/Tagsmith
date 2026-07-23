@@ -1,6 +1,12 @@
 import { recommendConventionalBump, type BumpRecommendation, type CommitMessage } from "./conventional.js";
 import { planNext, type NextPlan } from "./plan.js";
-import type { BumpLevel, TagAnomaly, TagLine, VersionModel } from "../types.js";
+import type {
+  BumpLevel,
+  CommitPolicy,
+  TagAnomaly,
+  TagLine,
+  VersionModel,
+} from "../types.js";
 
 export type ReleasePlanStatus = "ready" | "skipped" | "blocked";
 
@@ -51,6 +57,7 @@ export interface PlanReleaseLineInput {
   commits: readonly CommitMessage[];
   fromCommits: boolean;
   requireChanges?: boolean;
+  commitPolicy?: CommitPolicy;
   /** Safety facts supplied by tag-line assignment before Git evidence is read. */
   blockers?: readonly ReleasePlanBlocker[];
 }
@@ -121,7 +128,7 @@ export function planReleaseLine(input: PlanReleaseLineInput): ReleasePlanLine {
     return readyLine(common, baseline, "patch", null);
   }
 
-  const recommendation = recommendConventionalBump(input.commits);
+  const recommendation = recommendConventionalBump(input.commits, input.commitPolicy);
   if (recommendation.level === null) {
     return {
       ...common,
