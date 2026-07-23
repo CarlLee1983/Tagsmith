@@ -41,7 +41,7 @@ npm install -D @carllee1983/tagsmith
 # Then run: npx tagsmith <command>
 ```
 
-Requirements: Node.js 18 or newer and git.
+Requirements: Node.js >=18 and git.
 
 ## Quick start
 
@@ -85,7 +85,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 `tagsmith init` creates `.tagsmith.json` in the repository root. A configuration
 can define one or more independent tag lines:
 
-```json
+```json tagsmith-config
 {
   "tags": [
     {
@@ -123,7 +123,7 @@ with `--tag <name>`.
 The legacy single-line format remains supported. It is normalized internally as
 a line named `default`, so existing users do not need to migrate.
 
-```json
+```json tagsmith-config
 {
   "pattern": "v{version}",
   "model": { "type": "semver", "allowPrerelease": true },
@@ -143,7 +143,7 @@ prevents a release when that package has not changed since its latest tag.
 When using `--from-commits`, Tagsmith likewise considers only commits that
 touch the selected workspace.
 
-```json
+```json tagsmith-config
 {
   "tags": [
     {
