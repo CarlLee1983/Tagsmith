@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.4.0/schema.json",
+  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.7.0/schema.json",
   "documents": [
     "README.md",
     "CONTRIBUTING.md",
@@ -41,6 +41,24 @@
         "docs/README.zh-TW.md"
       ],
       "action": "action.yml"
+    }
+  ],
+  "pathReferences": [
+    {
+      "documents": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "docs/*.md"
+      ],
+      "include": [
+        "src/**",
+        "tests/**",
+        "docs/**",
+        ".github/**",
+        "*.json",
+        "*.yml",
+        "*.md"
+      ]
     }
   ]
 }
