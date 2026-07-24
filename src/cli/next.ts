@@ -104,10 +104,10 @@ export async function runNext(cwd: string, flags: NextFlags): Promise<number> {
 function diagnosticsForPlan(
   plan: ReturnType<typeof planNext>,
 ): JsonDiagnostic[] {
-  return plan.analysis.anomalies.map((tag) => ({
-    code: tag.anomaly ?? "tag-anomaly",
-    severity: "warning",
+  return plan.analysis.anomalies.flatMap((tag) => tag.anomaly === null ? [] : [{
+    code: tag.anomaly,
+    severity: "warning" as const,
     message: `Tag "${tag.raw}" is not conforming and was excluded from next-tag planning.`,
     tag: tag.raw,
-  }));
+  }]);
 }

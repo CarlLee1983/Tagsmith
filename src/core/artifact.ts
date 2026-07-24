@@ -1,13 +1,16 @@
+import type { AssertRegistered } from "./diagnostics.js";
 import type { TagLine, VersionModel } from "../types.js";
 
 export type ArtifactCheckStatus = "pass" | "fail" | "not-configured";
 
-export type ArtifactDiagnosticCode =
+/** The registry proves each code below is published; see `diagnostics.ts`. */
+export type ArtifactDiagnosticCode = AssertRegistered<
   | "artifact-package-json-missing"
   | "artifact-package-json-malformed"
   | "artifact-version-missing"
   | "artifact-version-invalid"
-  | "artifact-version-mismatch";
+  | "artifact-version-mismatch"
+>;
 
 export interface ArtifactDiagnostic {
   code: ArtifactDiagnosticCode;

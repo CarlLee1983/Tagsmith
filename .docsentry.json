@@ -18,7 +18,7 @@
       {
         "document": "README.md",
         "label": "minimum Node version",
-        "value": ">=18",
+        "value": ">=22",
         "evidence": "/engines/node"
       }
     ]

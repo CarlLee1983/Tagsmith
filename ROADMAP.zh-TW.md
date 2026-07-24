@@ -38,6 +38,7 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 | 3 | `0.7` | Monorepo release planning | 已發佈：多 workspace 可先得到完整發版計畫，再由既有流程逐一建立 tag。 |
 | 4 | `0.8` | Artifact 與 commit-policy 一致性 | 已發佈：tag、發行產物版本與 commit 規則可在建立前交叉驗證。 |
 | 5 | `0.9` | 靜態 pattern 重疊證明 | 已發佈：設定多條 tag line 時，衝突在任何 tag 出現之前就被證明並附上可重現的例子。 |
+| 6 | `1.0` | 穩定介面契約 | 待發行：自動化可以依賴的介面被明確定義、版本化並由測試守住。 |
 | 未排程 | 擴充機制與進階信任 | 只在真實使用需求成立後處理。 |
 
 版本號代表開發順序，不代表承諾的發布日期；每階段開始前仍應以實際 issue 或設計
@@ -225,6 +226,40 @@ Conventional Commit 約定。
   audit 與實際歸屬不一致。
 - `releasePolicy` 的「重疊即不得發版」旗標；等真實需求出現再設計，本階段先讓
   事實可見。
+
+## 1.0 — 穩定介面契約
+
+> 實作狀態：完成，待發行 `1.0.0`。設計與實作紀錄見
+> [`2026-07-24-stable-interface-contract-design.md`](docs/history/designs/2026-07-24-stable-interface-contract-design.md)
+> 與 [`2026-07-24-stable-interface-contract.md`](docs/history/plans/2026-07-24-stable-interface-contract.md)。
+
+### 目標
+
+把 0.5–0.9 累積、事實上已被自動化依賴的介面，明確定義為受 SemVer 保護的公開表面，
+並讓「有沒有違約」由測試判定。本階段不新增產品功能。
+
+### 功能範圍
+
+- 建立診斷碼登記表作為單一事實來源，並將 `JsonDiagnostic.code` 與
+  `ReleasePlanBlocker.code` 由 `string` 收斂為封閉聯集。
+- 為 `json-output.schema.json` 補上以 `command` 分派的 `data` 描述與 `code` enum，
+  並以 schema 驗證每個命令的真實輸出。
+- 將現行 exit code 語意（0 / 1）寫成文件契約並逐命令釘測試；不細分新的 exit code。
+- 以 `exports` 宣告 Tagsmith 是 CLI 而非 library，只開放兩份 schema 檔案。
+- `engines.node` 提升至仍在 LTS 支援期的範圍，並新增實際執行測試的 CI workflow。
+
+### 完成條件
+
+- 命令的 stdout、stderr 與 exit code 行為與 `0.9` 逐字相同；`schemaVersion` 維持 `1`。
+- 任何新增或改名的診斷碼，若未同步登記表與 schema，測試即失敗。
+- 受保護與不受保護的表面在中英文件中明確列出，呼叫端不需閱讀原始碼即可判斷。
+- CI 在 PR 上實際執行 typecheck、build、測試與覆蓋率門檻。
+
+### 不納入
+
+- 新增命令、旗標、診斷碼或任何產品功能。
+- 細分 exit code（會讓既有 `$? -eq 1` 腳本靜默失效）。
+- 開放公開 JS API 或以 codegen 產生 schema。
 
 ## 未排程候選項目
 

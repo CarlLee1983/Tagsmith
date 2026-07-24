@@ -1,3 +1,4 @@
+import type { AssertRegistered, DiagnosticSeverity } from "../diagnostics.js";
 import type { ReleasePolicy } from "../../types.js";
 import { matchSource } from "../merge-policy/match.js";
 
@@ -16,17 +17,21 @@ export interface ReleaseReadinessCheck {
   message: string;
 }
 
+/** The registry proves each code below is published; see `diagnostics.ts`. */
+export type ReleaseReadinessDiagnosticCode = AssertRegistered<
+  | "release-branch-not-allowed"
+  | "release-worktree-dirty"
+  | "release-remote-not-checked"
+  | "release-annotation-required"
+  | "release-target-not-head"
+  | "release-signature-required"
+  | "release-artifact-not-configured"
+  | "release-artifact-version-invalid"
+>;
+
 export interface ReleaseReadinessDiagnostic {
-  code:
-    | "release-branch-not-allowed"
-    | "release-worktree-dirty"
-    | "release-remote-not-checked"
-    | "release-annotation-required"
-    | "release-target-not-head"
-    | "release-signature-required"
-    | "release-artifact-not-configured"
-    | "release-artifact-version-invalid";
-  severity: "error" | "warning";
+  code: ReleaseReadinessDiagnosticCode;
+  severity: DiagnosticSeverity;
   message: string;
 }
 

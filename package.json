@@ -1,11 +1,18 @@
 {
   "name": "@carllee1983/tagsmith",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Define git tag specs, view tags, and generate the next git tag safely — avoiding ordering or format anomalies.",
   "type": "module",
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "tagsmith": "dist/cli/index.js"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./schema.json": "./schema.json",
+    "./json-output.schema.json": "./json-output.schema.json"
   },
   "files": [
     "dist",
@@ -41,7 +48,7 @@
     "url": "https://github.com/CarlLee1983/Tagsmith/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",
@@ -54,6 +61,7 @@
     "@types/node": "^22.5.0",
     "@types/semver": "^7.5.8",
     "@vitest/coverage-v8": "^2.0.5",
+    "ajv": "^8.20.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
