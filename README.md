@@ -45,7 +45,7 @@ npm install -D @carllee1983/tagsmith
 # Then run: npx tagsmith <command>
 ```
 
-Requirements: Node.js >=18 and git.
+Requirements: Node.js >=22 and git.
 
 ## Quick start
 
@@ -507,6 +507,69 @@ If a target hook contains unmanaged content, installation stops without writing
 anything; use `--force` only when replacing that hook is intended. For an
 emergency one-off bypass, set `TAGSMITH_SKIP=1` or `HUSKY=0` for the `git merge`
 command.
+
+## Stability contract
+
+From 1.0, the following are covered by SemVer. Breaking any of them requires a
+major release:
+
+| Surface | What is promised |
+| --- | --- |
+| Commands and flags | Existing command names, the `ls` alias, flag names and their meaning |
+| Exit codes | Each command's 0 / non-zero condition (see below) |
+| JSON envelope | `schemaVersion`, `command`, `ok`, `data`, `diagnostics` and the documented `data` fields |
+| Diagnostic codes | Every code in the registry below, and what triggers it |
+| Configuration | Existing `.tagsmith.json` fields and `schema.json` |
+| GitHub Action | `action.yml` input and output names and meaning |
+| Supported runtimes | The declared `engines.node` range |
+
+The following are **not** covered, and may change in any release:
+
+- The wording, colour and layout of human-readable output. Automation must use
+  `--json`; that is what the envelope exists for.
+- The `message` text of a diagnostic. Only `code` is contractual.
+- The internal module layout of `dist/`. Tagsmith publishes a CLI, not a
+  library: `exports` deliberately exposes only `schema.json`,
+  `json-output.schema.json` and `package.json`.
+
+New fields, new diagnostic codes and new flags are additive and ship in minor
+releases. Callers must therefore ignore unknown `data` fields and fall back to
+`severity` when they encounter an unknown `code`.
+
+### Exit codes
+
+Tagsmith uses `0` for success and `1` for everything else, and does not
+subdivide failures — scripts testing `$? -eq 1` keep working, and failure
+classification is carried by diagnostic codes in `--json` output.
+
+| Command | Exits 0 | Exits 1 |
+| --- | --- | --- |
+| `list` | Tags could be read | Configuration or repository could not be read |
+| `check` | Every checked tag conforms | Any tag fails |
+| `next` | A candidate was computed | No safe candidate exists |
+| `audit` | No error-severity diagnostic | Any error-severity diagnostic |
+| `plan --all` | No line is blocked | Any line is blocked |
+| `create` | Tag created, or `--dry-run` preview succeeded | Validation or Git failed |
+| `merge-check` | Policy passed, or skipped via `HUSKY=0` / `TAGSMITH_SKIP=1` | Policy rejected the merge |
+| `hooks install` / `uninstall` | Completed | Pre-flight check failed |
+
+### Diagnostic codes
+
+The registry is closed; `json-output.schema.json` publishes it as an enum and
+the test suite fails if code and schema drift apart.
+
+| Group | Codes |
+| --- | --- |
+| Tag anomalies | `pattern-mismatch`, `unparseable-version`, `duplicate-version`, `ambiguous-assignment` |
+| Configuration | `orphan-tag`, `pattern-overlap-certain`, `pattern-overlap-possible`, `workspace-required`, `from-commits-unsupported` |
+| Artifact consistency | `artifact-package-json-missing`, `artifact-package-json-malformed`, `artifact-version-missing`, `artifact-version-invalid`, `artifact-version-mismatch` |
+| Release policy | `release-branch-not-allowed`, `release-worktree-dirty`, `release-remote-not-checked`, `release-annotation-required`, `release-target-not-head`, `release-signature-required`, `release-artifact-not-configured`, `release-artifact-version-invalid` |
+| Command | `command-error` (emitted with `data: null` when a command cannot complete) |
+
+`data.releaseReadiness.checks[].code` uses a separate, shorter set
+(`release-branch`, `release-worktree`, `release-remote`, `release-annotation`,
+`release-target`, `release-signature`, `release-artifact`) describing which
+check ran, not why it failed.
 
 ## Documentation
 

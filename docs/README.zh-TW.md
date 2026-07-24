@@ -34,7 +34,7 @@ npm install -D @carllee1983/tagsmith
 
 npm：[https://www.npmjs.com/package/@carllee1983/tagsmith](https://www.npmjs.com/package/@carllee1983/tagsmith)
 
-需求：Node.js ≥ 18、git。
+需求：Node.js ≥ 22、git。
 
 ## 快速開始
 
@@ -679,12 +679,62 @@ HUSKY=0 git merge ...           # 同樣略過
 | `tagsmith hooks uninstall` | 移除 tagsmith 管理的 hooks |
 | `tagsmith merge-check [--mode <merge-head\|post-merge>]` | 由 hook 呼叫，套用政策；非日常手動輸入 |
 
-## 結束代碼
+## 穩定性契約
 
-| 代碼 | 意義 |
-|:---:|------|
-| `0` | 成功（含 `--dry-run`） |
-| `1` | 失敗：非 git repo、驗證未通過、git 指令錯誤等（訊息走 stderr） |
+自 1.0 起，下列表面受 SemVer 保護，破壞它們需要 major 版本：
+
+| 表面 | 承諾內容 |
+| --- | --- |
+| 指令與旗標 | 既有指令名、`ls` 別名、旗標名與其語意 |
+| 結束代碼 | 每個指令回傳 0 / 非 0 的條件（見下表） |
+| JSON envelope | `schemaVersion`、`command`、`ok`、`data`、`diagnostics` 與已文件化的 `data` 欄位 |
+| 診斷碼 | 登記表中每個碼的字面值與觸發條件 |
+| 設定檔 | `.tagsmith.json` 既有欄位語意與 `schema.json` |
+| GitHub Action | `action.yml` 的 inputs / outputs 名稱與語意 |
+| 支援平台 | `engines.node` 宣告的範圍 |
+
+下列項目**不受**保護，任何版本都可能調整：
+
+- 人類可讀輸出的措辭、顏色與排版。自動化請一律使用 `--json`，這正是 envelope 存在的理由。
+- 診斷訊息的 `message` 字串。只有 `code` 是契約。
+- `dist/` 的內部模組結構。Tagsmith 發佈的是 CLI 而非 library：`exports` 僅開放
+  `schema.json`、`json-output.schema.json` 與 `package.json`。
+
+新增欄位、新增診斷碼與新增旗標都是增補，於 minor 版本發佈。因此呼叫端必須忽略未知的
+`data` 欄位，遇到未知 `code` 時改以 `severity` 判斷嚴重度。
+
+### 結束代碼
+
+Tagsmith 只用 `0`（成功）與 `1`（其餘），刻意不細分失敗類型——既有
+`$? -eq 1` 的腳本不會失效，失敗分類則由 `--json` 的診斷碼承載。
+
+| 指令 | 回傳 0 | 回傳 1 |
+| --- | --- | --- |
+| `list` | 成功讀取 tag | 無法讀取設定或 repository |
+| `check` | 所有受檢 tag 皆通過 | 任一 tag 不通過 |
+| `next` | 成功算出候選 | 沒有安全的候選 |
+| `audit` | 無 error 等級診斷 | 有 error 等級診斷 |
+| `plan --all` | 沒有任何線被阻擋 | 任一線被阻擋 |
+| `create` | 建立成功，或 `--dry-run` 預覽成功 | 驗證失敗或 git 指令錯誤 |
+| `merge-check` | 政策通過，或以 `HUSKY=0` / `TAGSMITH_SKIP=1` 略過 | 政策拒絕該次合併 |
+| `hooks install` / `uninstall` | 完成 | 前置檢查失敗 |
+
+### 診斷碼
+
+登記表是封閉的；`json-output.schema.json` 以 enum 發佈同一份清單，程式與 schema
+一旦分歧測試即失敗。
+
+| 分組 | 診斷碼 |
+| --- | --- |
+| Tag 異常 | `pattern-mismatch`、`unparseable-version`、`duplicate-version`、`ambiguous-assignment` |
+| 設定層級 | `orphan-tag`、`pattern-overlap-certain`、`pattern-overlap-possible`、`workspace-required`、`from-commits-unsupported` |
+| Artifact 一致性 | `artifact-package-json-missing`、`artifact-package-json-malformed`、`artifact-version-missing`、`artifact-version-invalid`、`artifact-version-mismatch` |
+| 發版政策 | `release-branch-not-allowed`、`release-worktree-dirty`、`release-remote-not-checked`、`release-annotation-required`、`release-target-not-head`、`release-signature-required`、`release-artifact-not-configured`、`release-artifact-version-invalid` |
+| 指令層級 | `command-error`（指令無法完成時發出，此時 `data` 為 `null`） |
+
+`data.releaseReadiness.checks[].code` 是另一組較短的碼（`release-branch`、
+`release-worktree`、`release-remote`、`release-annotation`、`release-target`、
+`release-signature`、`release-artifact`），描述「執行了哪項檢查」，而非失敗原因。
 
 ## 設計
 

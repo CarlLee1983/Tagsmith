@@ -1,19 +1,22 @@
 import { analyzeTags } from "./analyze.js";
+import type { AssertRegistered, DiagnosticSeverity } from "./diagnostics.js";
 import { assignTagsToLines } from "./lines.js";
 import { createModel } from "./models/index.js";
 import { compilePattern } from "./pattern.js";
 import { analyzePatternOverlap, type OverlapPair } from "./pattern-overlap.js";
 import type { TagAnomaly, TagLine } from "../types.js";
 
-export type AuditSeverity = "error" | "warning";
+export type AuditSeverity = DiagnosticSeverity;
 
-export type AuditDiagnosticCode =
+/** The registry proves each code below is published; see `diagnostics.ts`. */
+export type AuditDiagnosticCode = AssertRegistered<
   | "unparseable-version"
   | "duplicate-version"
   | "orphan-tag"
   | "ambiguous-assignment"
   | "pattern-overlap-certain"
-  | "pattern-overlap-possible";
+  | "pattern-overlap-possible"
+>;
 
 export interface AuditDiagnostic {
   code: AuditDiagnosticCode;

@@ -7,7 +7,7 @@ architecture boundaries, and expectations for a change.
 
 ## Development setup
 
-Requirements: Node.js 18 or newer and git.
+Requirements: Node.js 22 or newer and git.
 
 This repository contains the package source. The published npm package is
 [`@carllee1983/tagsmith`](https://www.npmjs.com/package/@carllee1983/tagsmith),

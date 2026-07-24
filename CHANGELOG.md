@@ -8,6 +8,48 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-24
+
+Command output, exit codes and configuration are unchanged from `0.9.0`; the
+JSON `schemaVersion` remains `1`. This release defines what is contractual and
+makes the contract machine-checked.
+
+### Breaking
+
+- `engines.node` is now `>=22`. Tagsmith only promises support for Node
+  versions still under LTS support; Node 18 and 20 have both reached
+  end-of-life.
+- The package declares `exports`, exposing only `schema.json`,
+  `json-output.schema.json` and `package.json`. Tagsmith publishes a CLI, not a
+  library, so `dist/` modules are no longer importable. The `tagsmith` binary is
+  unaffected.
+
+### Added
+
+- A documented stability contract: which surfaces are covered by SemVer (
+  commands, flags, exit codes, JSON envelope, diagnostic codes, configuration,
+  Action inputs/outputs, supported runtimes) and which are not (human-readable
+  text, diagnostic `message` strings, internal module layout).
+- A closed diagnostic-code registry in `src/core/diagnostics.ts`, published as
+  an enum in `json-output.schema.json` and mirrored in both READMEs.
+- Per-command `data` schemas in `json-output.schema.json`, including the two
+  shapes `list` emits with and without `--all`, validated against real command
+  output by `tests/json-contract.test.ts`.
+- `tests/exit-codes.test.ts`, pinning a success and failure case for every
+  command.
+- A CI workflow running typecheck, build, tests and the coverage threshold on
+  Node 22 and 24.
+
+### Changed
+
+- `JsonDiagnostic.code` and `ReleasePlanBlocker.code` are typed as the registry
+  union instead of `string`, so an unregistered code is a compile error.
+
+### Removed
+
+- An unreachable `tag-anomaly` fallback code in `next --json`; every anomaly
+  already carries a registered code.
+
 ## [0.9.0] - 2026-07-24
 
 ### Added

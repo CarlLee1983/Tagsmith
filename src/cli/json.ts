@@ -1,13 +1,14 @@
+import type { DiagnosticCode, DiagnosticSeverity } from "../core/diagnostics.js";
 import { info } from "./ui.js";
 
 export const JSON_SCHEMA_VERSION = 1 as const;
 
 export type JsonCommand = "list" | "check" | "next" | "audit" | "plan";
-export type JsonDiagnosticSeverity = "error" | "warning";
+export type JsonDiagnosticSeverity = DiagnosticSeverity;
 
 /** A stable, machine-readable explanation that never requires parsing text. */
 export interface JsonDiagnostic {
-  code: string;
+  code: DiagnosticCode;
   severity: JsonDiagnosticSeverity;
   message: string;
   tag?: string;

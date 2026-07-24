@@ -1,4 +1,5 @@
 import { recommendConventionalBump, type BumpRecommendation, type CommitMessage } from "./conventional.js";
+import type { DiagnosticCode } from "./diagnostics.js";
 import { planNext, type NextPlan } from "./plan.js";
 import type {
   BumpLevel,
@@ -12,7 +13,7 @@ export type ReleasePlanStatus = "ready" | "skipped" | "blocked";
 
 /** A stable, machine-readable reason why a line cannot be planned safely. */
 export interface ReleasePlanBlocker {
-  code: string;
+  code: DiagnosticCode;
   message: string;
 }
 

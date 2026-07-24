@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/CarlLee1983/Tagsmith/json-output.schema.json",
   "title": "Tagsmith JSON command output",
-  "description": "Versioned envelope emitted by Tagsmith read-only commands with --json.",
+  "description": "Versioned envelope emitted by Tagsmith read-only commands with --json. The envelope is closed; each command's data documents the fields callers may rely on and stays open to additive, minor-version fields.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "command", "ok", "data", "diagnostics"],
@@ -26,21 +26,443 @@
       "items": { "$ref": "#/definitions/diagnostic" }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "command": { "const": "list" } }, "required": ["command"] },
+      "then": { "properties": { "data": { "$ref": "#/definitions/listData" } } }
+    },
+    {
+      "if": { "properties": { "command": { "const": "check" } }, "required": ["command"] },
+      "then": { "properties": { "data": { "$ref": "#/definitions/checkData" } } }
+    },
+    {
+      "if": { "properties": { "command": { "const": "next" } }, "required": ["command"] },
+      "then": { "properties": { "data": { "$ref": "#/definitions/nextData" } } }
+    },
+    {
+      "if": { "properties": { "command": { "const": "audit" } }, "required": ["command"] },
+      "then": { "properties": { "data": { "$ref": "#/definitions/auditData" } } }
+    },
+    {
+      "if": { "properties": { "command": { "const": "plan" } }, "required": ["command"] },
+      "then": { "properties": { "data": { "$ref": "#/definitions/planData" } } }
+    }
+  ],
   "definitions": {
+    "diagnosticCode": {
+      "description": "The closed registry of diagnostic codes; mirrors DIAGNOSTIC_CODES in src/core/diagnostics.ts.",
+      "enum": [
+        "pattern-mismatch",
+        "unparseable-version",
+        "duplicate-version",
+        "ambiguous-assignment",
+        "orphan-tag",
+        "pattern-overlap-certain",
+        "pattern-overlap-possible",
+        "workspace-required",
+        "from-commits-unsupported",
+        "artifact-package-json-missing",
+        "artifact-package-json-malformed",
+        "artifact-version-missing",
+        "artifact-version-invalid",
+        "artifact-version-mismatch",
+        "release-branch-not-allowed",
+        "release-worktree-dirty",
+        "release-remote-not-checked",
+        "release-annotation-required",
+        "release-target-not-head",
+        "release-signature-required",
+        "release-artifact-not-configured",
+        "release-artifact-version-invalid",
+        "command-error"
+      ]
+    },
     "diagnostic": {
       "type": "object",
       "additionalProperties": false,
       "required": ["code", "severity", "message"],
       "properties": {
-        "code": { "type": "string" },
+        "code": { "$ref": "#/definitions/diagnosticCode" },
         "severity": { "enum": ["error", "warning"] },
-        "message": { "type": "string" },
+        "message": {
+          "type": "string",
+          "description": "Human-readable text. Not part of the contract; switch on code instead."
+        },
         "tag": { "type": "string" },
         "line": { "type": "string" },
         "lines": { "type": "array", "items": { "type": "string" } },
         "matches": { "type": "array", "items": { "type": "string" } },
         "path": { "type": "string" }
       }
+    },
+    "config": {
+      "type": "object",
+      "description": "Configuration provenance. pattern is present only for implicit configurations.",
+      "required": ["source"],
+      "properties": {
+        "source": { "enum": ["file", "inferred", "default"] },
+        "pattern": { "type": "string" }
+      }
+    },
+    "tagAnomaly": {
+      "enum": [
+        "pattern-mismatch",
+        "unparseable-version",
+        "duplicate-version",
+        "ambiguous-assignment"
+      ]
+    },
+    "conformingTag": {
+      "type": "object",
+      "required": ["tag", "version"],
+      "properties": {
+        "tag": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "anomalousTag": {
+      "type": "object",
+      "required": ["tag", "reason"],
+      "properties": {
+        "tag": { "type": "string" },
+        "reason": { "$ref": "#/definitions/tagAnomaly" }
+      }
+    },
+    "ambiguousTag": {
+      "type": "object",
+      "required": ["tag", "lines"],
+      "properties": {
+        "tag": { "type": "string" },
+        "lines": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "lineReport": {
+      "type": "object",
+      "required": ["line", "conforming", "anomalies", "latest"],
+      "properties": {
+        "line": { "type": "string" },
+        "conforming": { "type": "array", "items": { "$ref": "#/definitions/conformingTag" } },
+        "anomalies": { "type": "array", "items": { "$ref": "#/definitions/anomalousTag" } },
+        "latest": { "type": ["string", "null"] }
+      }
+    },
+    "remote": {
+      "type": "object",
+      "description": "Whether a remote was contacted; name is present only when checked.",
+      "required": ["checked"],
+      "properties": {
+        "checked": { "type": "boolean" },
+        "name": { "type": "string" }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "description": "Conventional Commit derivation; present only with --from-commits.",
+      "required": ["level", "reasons"],
+      "properties": {
+        "level": { "enum": ["major", "minor", "patch", null] },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "level", "summary", "rule"],
+            "properties": {
+              "id": { "type": "string" },
+              "level": { "enum": ["major", "minor", "patch"] },
+              "summary": { "type": "string" },
+              "rule": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "listData": {
+      "description": "Two shapes: --all reports every line, otherwise one selected line.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["config", "lines", "orphans", "ambiguous"],
+          "properties": {
+            "config": { "$ref": "#/definitions/config" },
+            "lines": { "type": "array", "items": { "$ref": "#/definitions/lineReport" } },
+            "orphans": { "type": "array", "items": { "type": "string" } },
+            "ambiguous": { "type": "array", "items": { "$ref": "#/definitions/ambiguousTag" } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["config", "line", "conforming", "anomalies", "latest", "ambiguous"],
+          "properties": {
+            "config": { "$ref": "#/definitions/config" },
+            "line": { "type": "string" },
+            "conforming": { "type": "array", "items": { "$ref": "#/definitions/conformingTag" } },
+            "anomalies": { "type": "array", "items": { "$ref": "#/definitions/anomalousTag" } },
+            "latest": { "type": ["string", "null"] },
+            "orphans": { "type": "array", "items": { "type": "string" } },
+            "ambiguous": { "type": "array", "items": { "$ref": "#/definitions/ambiguousTag" } }
+          }
+        }
+      ]
+    },
+    "checkData": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["results", "strict", "config"],
+          "properties": {
+            "config": { "$ref": "#/definitions/config" },
+            "strict": { "type": "boolean" },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["raw", "line", "matches", "ok", "anomaly"],
+                "properties": {
+                  "raw": { "type": "string" },
+                  "line": { "type": ["string", "null"] },
+                  "matches": { "type": "array", "items": { "type": "string" } },
+                  "ok": { "type": "boolean" },
+                  "anomaly": {
+                    "oneOf": [{ "$ref": "#/definitions/tagAnomaly" }, { "type": "null" }]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nextData": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["config", "tag", "version", "fromVersion", "fresh", "line", "workspace"],
+          "properties": {
+            "config": { "$ref": "#/definitions/config" },
+            "tag": { "type": "string" },
+            "version": { "type": "string" },
+            "fromVersion": { "type": ["string", "null"] },
+            "fresh": {
+              "type": "boolean",
+              "description": "True when no prior conforming tag existed on this line."
+            },
+            "line": { "type": "string" },
+            "workspace": { "type": ["string", "null"] },
+            "recommendation": { "$ref": "#/definitions/recommendation" }
+          }
+        }
+      ]
+    },
+    "auditData": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": [
+            "config",
+            "ok",
+            "lines",
+            "orphans",
+            "ambiguous",
+            "overlaps",
+            "diagnostics",
+            "artifacts",
+            "releaseReadiness",
+            "remote"
+          ],
+          "properties": {
+            "config": { "$ref": "#/definitions/config" },
+            "ok": {
+              "type": "boolean",
+              "description": "Includes artifact and release-policy results, unlike the report-only fields."
+            },
+            "lines": { "type": "array", "items": { "$ref": "#/definitions/lineReport" } },
+            "orphans": { "type": "array", "items": { "type": "string" } },
+            "ambiguous": { "type": "array", "items": { "$ref": "#/definitions/ambiguousTag" } },
+            "overlaps": {
+              "type": "array",
+              "description": "Line pairs proven to accept a common tag; disjoint pairs are omitted.",
+              "items": {
+                "type": "object",
+                "required": ["a", "b", "verdict"],
+                "properties": {
+                  "a": { "type": "string" },
+                  "b": { "type": "string" },
+                  "verdict": { "enum": ["disjoint", "overlapping"] },
+                  "witness": { "type": "string" },
+                  "witnessSource": { "enum": ["line-version", "constructed"] },
+                  "witnessOrigin": {
+                    "type": "object",
+                    "required": ["line", "version"],
+                    "properties": {
+                      "line": { "type": "string" },
+                      "version": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            },
+            "diagnostics": {
+              "type": "array",
+              "description": "History diagnostics only; the envelope's diagnostics is the complete set.",
+              "items": { "$ref": "#/definitions/diagnostic" }
+            },
+            "artifacts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "line",
+                  "tag",
+                  "expectedVersion",
+                  "path",
+                  "configured",
+                  "status",
+                  "actualVersion",
+                  "diagnostics"
+                ],
+                "properties": {
+                  "line": { "type": "string" },
+                  "tag": { "type": "string" },
+                  "expectedVersion": { "type": "string" },
+                  "path": { "type": ["string", "null"] },
+                  "configured": { "type": "boolean" },
+                  "status": { "enum": ["pass", "fail", "not-configured"] },
+                  "actualVersion": { "type": ["string", "null"] },
+                  "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/diagnostic" } }
+                }
+              }
+            },
+            "releaseReadiness": {
+              "type": "object",
+              "required": ["enabled", "ok", "checks", "diagnostics"],
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "False when no releasePolicy is configured; checks is then empty."
+                },
+                "ok": { "type": "boolean" },
+                "checks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["code", "status", "message"],
+                    "properties": {
+                      "code": {
+                        "enum": [
+                          "release-branch",
+                          "release-worktree",
+                          "release-remote",
+                          "release-annotation",
+                          "release-target",
+                          "release-signature",
+                          "release-artifact"
+                        ]
+                      },
+                      "status": { "enum": ["pass", "warn", "fail", "not-applicable"] },
+                      "message": { "type": "string" }
+                    }
+                  }
+                },
+                "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/diagnostic" } },
+                "facts": { "type": "object" }
+              }
+            },
+            "remote": { "$ref": "#/definitions/remote" }
+          }
+        }
+      ]
+    },
+    "planData": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["config", "defaultLine", "hasReleases", "lines", "remote"],
+          "properties": {
+            "config": { "$ref": "#/definitions/config" },
+            "defaultLine": { "type": "string" },
+            "hasReleases": {
+              "type": "boolean",
+              "description": "True when at least one line has status ready."
+            },
+            "remote": { "$ref": "#/definitions/remote" },
+            "lines": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "line",
+                  "workspace",
+                  "status",
+                  "changed",
+                  "latestTag",
+                  "bump",
+                  "candidate",
+                  "recommendation",
+                  "commits",
+                  "blockers",
+                  "anomalies"
+                ],
+                "properties": {
+                  "line": { "type": "string" },
+                  "workspace": { "type": ["string", "null"] },
+                  "status": { "enum": ["ready", "skipped", "blocked"] },
+                  "changed": { "type": ["boolean", "null"] },
+                  "latestTag": { "type": ["string", "null"] },
+                  "bump": {
+                    "enum": ["major", "minor", "patch", "prerelease", "auto", null]
+                  },
+                  "candidate": {
+                    "oneOf": [
+                      { "type": "null" },
+                      {
+                        "type": "object",
+                        "required": ["tag", "version", "fromVersion", "fresh"],
+                        "properties": {
+                          "tag": { "type": "string" },
+                          "version": { "type": "string" },
+                          "fromVersion": { "type": ["string", "null"] },
+                          "fresh": { "type": "boolean" }
+                        }
+                      }
+                    ]
+                  },
+                  "recommendation": {
+                    "oneOf": [{ "$ref": "#/definitions/recommendation" }, { "type": "null" }]
+                  },
+                  "commits": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "summary"],
+                      "properties": {
+                        "id": { "type": "string" },
+                        "summary": { "type": "string" }
+                      }
+                    }
+                  },
+                  "blockers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["code", "message"],
+                      "properties": {
+                        "code": { "$ref": "#/definitions/diagnosticCode" },
+                        "message": { "type": "string" }
+                      }
+                    }
+                  },
+                  "anomalies": { "type": "array", "items": { "$ref": "#/definitions/anomalousTag" } }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

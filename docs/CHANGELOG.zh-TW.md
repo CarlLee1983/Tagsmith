@@ -7,6 +7,40 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-24
+
+指令輸出、結束代碼與設定檔皆與 `0.9.0` 相同，JSON 的 `schemaVersion` 維持 `1`。
+本版定義的是「哪些介面算契約」，並讓契約可由測試檢查。
+
+### 破壞性變更
+
+- `engines.node` 提升為 `>=22`。Tagsmith 只承諾支援仍在 LTS 支援期的 Node；
+  Node 18 與 20 皆已 EOL。
+- 套件宣告 `exports`，僅開放 `schema.json`、`json-output.schema.json` 與
+  `package.json`。Tagsmith 發佈的是 CLI 而非 library，`dist/` 內的模組不再可被匯入；
+  `tagsmith` 執行檔不受影響。
+
+### 新增
+
+- 明文的穩定性契約：列出受 SemVer 保護的表面（指令、旗標、結束代碼、JSON envelope、
+  診斷碼、設定檔、Action 的 inputs/outputs、支援平台）與不受保護的部分（人類可讀
+  輸出、診斷的 `message` 字串、內部模組結構）。
+- `src/core/diagnostics.ts` 的封閉診斷碼登記表，並以 enum 發佈於
+  `json-output.schema.json`，中英文 README 同步列出。
+- `json-output.schema.json` 補上每個指令的 `data` 描述，包含 `list` 在有無 `--all`
+  時的兩種形狀；由 `tests/json-contract.test.ts` 以真實輸出驗證。
+- `tests/exit-codes.test.ts`：每個指令各釘一個成功與一個失敗情境。
+- CI workflow：在 Node 22 與 24 上執行 typecheck、build、測試與覆蓋率門檻。
+
+### 變更
+
+- `JsonDiagnostic.code` 與 `ReleasePlanBlocker.code` 由 `string` 收斂為登記表聯集，
+  未登記的碼會直接是編譯錯誤。
+
+### 移除
+
+- `next --json` 中永遠不會執行的 `tag-anomaly` fallback；所有異常本來就帶有已登記的碼。
+
 ## [0.9.0] - 2026-07-24
 
 ### 新增
