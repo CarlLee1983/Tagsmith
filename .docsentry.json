@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.7.0/schema.json",
+  "$schema": "https://unpkg.com/@carllee1983/docsentry@0.8.0/schema.json",
   "documents": [
     "README.md",
     "CONTRIBUTING.md",
@@ -59,6 +59,25 @@
         "*.yml",
         "*.md"
       ]
+    }
+  ],
+  "enumerations": [
+    {
+      "documents": [
+        "README.md"
+      ],
+      "label": "diagnostic code",
+      "values": {
+        "manifest": "json-output.schema.json",
+        "pointer": [
+          "/definitions/diagnosticCode/enum",
+          "/definitions/auditData/oneOf/1/properties/releaseReadiness/properties/checks/items/properties/code/enum"
+        ]
+      },
+      "documented": {
+        "pattern": "[a-z][a-z0-9-]+",
+        "section": "Diagnostic codes"
+      }
     }
   ]
 }
