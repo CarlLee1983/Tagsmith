@@ -270,6 +270,7 @@ Useful options:
 tagsmith list --all                    # Show every configured line and orphan tags
 tagsmith audit --json                  # Machine-readable complete tag audit
 tagsmith audit --fetch --remote origin # Include freshly fetched remote tags
+tagsmith audit --strict-overlap        # Fail when two patterns can collide
 tagsmith plan --all --json             # Read every line's release decision
 tagsmith plan --all --from-commits     # Use Conventional Commits for SemVer lines
 tagsmith check --strict --json         # Audit tag shape and duplicate versions
@@ -374,6 +375,32 @@ that history until it is resolved.
 For a line with a package-json artifact, audit also checks the exact manifest
 stored at every conforming historical tag. It reports stable errors for a
 missing or malformed manifest, missing/invalid version, or version mismatch.
+
+Audit also proves, without any tag being involved, whether two configured
+patterns can ever accept the same tag name. `data.overlaps` lists each proven
+pair together with a witness tag that both patterns match, so the finding can
+be reproduced directly:
+
+```jsonc
+// tagsmith audit --json, for lines "v{version}" and "v{version}-rc"
+"overlaps": [
+  {
+    "a": "app",
+    "b": "rc",
+    "verdict": "overlapping",
+    "witness": "v0.1.0-rc",
+    "witnessSource": "line-version",
+    "witnessOrigin": { "line": "rc", "version": "0.1.0" }
+  }
+]
+```
+
+`pattern-overlap-certain` means one line really renders a tag the other line
+also matches; `pattern-overlap-possible` means the patterns intersect only
+through a tag no configured initial version produces today. Both are warnings,
+because the collision has not happened yet — the existing `ambiguous-assignment`
+error still covers tags that already collide. Pass `--strict-overlap` to treat
+either code as an error and fail the audit.
 
 Every `--json` result from `list`, `check`, `next`, `audit`, and `plan` uses the same
 versioned envelope. Read command-specific fields from `data`, and make

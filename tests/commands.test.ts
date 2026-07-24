@@ -470,6 +470,83 @@ describe("command runners (in-process)", () => {
       ]);
     });
 
+    it("proves an overlap before any colliding tag exists, as a warning", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "rc", pattern: "v{version}-rc", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runAudit(dir, { json: true }));
+      const json = jsonOutput(r.out);
+
+      // A warning must not fail an audit whose tag history is still clean.
+      expect(r.code).toBe(0);
+      expect(json.ok).toBe(true);
+      expect(json.data.overlaps).toEqual([
+        expect.objectContaining({
+          a: "app",
+          b: "rc",
+          verdict: "overlapping",
+          witness: "v0.1.0-rc",
+          witnessSource: "line-version",
+        }),
+      ]);
+      expect(json.diagnostics).toContainEqual(expect.objectContaining({
+        code: "pattern-overlap-certain",
+        severity: "warning",
+        lines: ["app", "rc"],
+      }));
+    });
+
+    it("fails the audit on the same configuration under --strict-overlap", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "rc", pattern: "v{version}-rc", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+
+      const r = await capture(() => runAudit(dir, { strictOverlap: true }));
+
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/\[pattern-overlap-certain\]/);
+      expect(r.out).toMatch(/Audit failed: 1 error/);
+    });
+
+    it("leaves list untouched by configuration-level overlap findings", async () => {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          tags: [
+            { name: "app", pattern: "v{version}", model: { type: "semver" }, initialVersion: "0.1.0" },
+            { name: "rc", pattern: "v{version}-rc", model: { type: "semver" }, initialVersion: "0.1.0" },
+          ],
+          default: "app",
+        }),
+        "utf8",
+      );
+      tag(dir, "v1.0.0");
+
+      const r = await capture(() => runList(dir, { all: true, json: true }));
+      const json = jsonOutput(r.out);
+
+      expect(r.code).toBe(0);
+      expect(json.diagnostics).toEqual([]);
+    });
+
     it("keeps JSON output parseable when auditing outside a repository", async () => {
       const outside = await mkdtemp(path.join(tmpdir(), "tagsmith-no-repo-"));
       try {

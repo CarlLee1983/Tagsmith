@@ -56,12 +56,23 @@ function printAmbiguous(report: AuditReport, selectedLine?: string): void {
   }
 }
 
+/**
+ * `list` reports tag history. Pattern overlap is a configuration defect that
+ * exists with or without tags, so it stays an `audit` concern and never changes
+ * what an existing `list` caller sees.
+ */
+function historyDiagnostics(report: AuditReport): AuditDiagnostic[] {
+  return report.diagnostics.filter(
+    (diagnostic) => !diagnostic.code.startsWith("pattern-overlap"),
+  );
+}
+
 function diagnosticsForLine(
   report: AuditReport,
   lineName: string,
   includeOrphans: boolean,
 ): AuditDiagnostic[] {
-  return report.diagnostics.filter((diagnostic) =>
+  return historyDiagnostics(report).filter((diagnostic) =>
     (includeOrphans && diagnostic.code === "orphan-tag") ||
     diagnostic.line === lineName ||
     diagnostic.lines?.includes(lineName),
@@ -90,7 +101,7 @@ export async function runList(cwd: string, flags: ListFlags): Promise<number> {
             orphans: report.orphans,
             ambiguous: report.ambiguous,
           },
-          report.diagnostics,
+          historyDiagnostics(report),
         );
         return 0;
       }

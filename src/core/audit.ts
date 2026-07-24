@@ -2,6 +2,7 @@ import { analyzeTags } from "./analyze.js";
 import { assignTagsToLines } from "./lines.js";
 import { createModel } from "./models/index.js";
 import { compilePattern } from "./pattern.js";
+import { analyzePatternOverlap, type OverlapPair } from "./pattern-overlap.js";
 import type { TagAnomaly, TagLine } from "../types.js";
 
 export type AuditSeverity = "error" | "warning";
@@ -10,7 +11,9 @@ export type AuditDiagnosticCode =
   | "unparseable-version"
   | "duplicate-version"
   | "orphan-tag"
-  | "ambiguous-assignment";
+  | "ambiguous-assignment"
+  | "pattern-overlap-certain"
+  | "pattern-overlap-possible";
 
 export interface AuditDiagnostic {
   code: AuditDiagnosticCode;
@@ -36,7 +39,14 @@ export interface AuditReport {
   lines: AuditLineReport[];
   orphans: string[];
   ambiguous: Array<{ tag: string; lines: string[] }>;
+  /** Line pairs proven to accept a common tag; disjoint pairs are omitted. */
+  overlaps: OverlapPair[];
   diagnostics: AuditDiagnostic[];
+}
+
+export interface AuditOptions {
+  /** Raise pattern-overlap diagnostics from warning to error. */
+  strictOverlap?: boolean;
 }
 
 /**
@@ -47,6 +57,7 @@ export interface AuditReport {
 export function auditTags(
   tags: readonly string[],
   lines: readonly TagLine[],
+  options: AuditOptions = {},
 ): AuditReport {
   const assignment = assignTagsToLines(tags, lines);
   const diagnostics: AuditDiagnostic[] = [];
@@ -96,12 +107,48 @@ export function auditTags(
     });
   }
 
+  // Static proof: a collision the tag history has not produced yet is still a
+  // configuration defect, and it is cheapest to fix before the tag exists.
+  const overlaps = analyzePatternOverlap(lines).pairs
+    .filter((pair) => pair.verdict === "overlapping");
+  const overlapSeverity: AuditSeverity =
+    options.strictOverlap === true ? "error" : "warning";
+  for (const pair of overlaps) {
+    diagnostics.push(overlapDiagnostic(pair, overlapSeverity));
+  }
+
   return {
     ok: !diagnostics.some((diagnostic) => diagnostic.severity === "error"),
     lines: lineReports,
     orphans: assignment.orphans,
     ambiguous: assignment.ambiguous,
+    overlaps,
     diagnostics,
+  };
+}
+
+function overlapDiagnostic(
+  pair: OverlapPair,
+  severity: AuditSeverity,
+): AuditDiagnostic {
+  const witness = pair.witness!;
+  const lines = [pair.a, pair.b];
+  if (pair.witnessSource === "line-version") {
+    const origin = pair.witnessOrigin!;
+    return {
+      code: "pattern-overlap-certain",
+      severity,
+      message: `Tag lines "${pair.a}" and "${pair.b}" can produce the same tag: line "${origin.line}" renders "${witness}" for version ${origin.version}, which the other line also matches.`,
+      tag: witness,
+      lines,
+    };
+  }
+  return {
+    code: "pattern-overlap-possible",
+    severity,
+    message: `Tag lines "${pair.a}" and "${pair.b}" both accept "${witness}", although neither line's initial version produces such a tag today.`,
+    tag: witness,
+    lines,
   };
 }
 

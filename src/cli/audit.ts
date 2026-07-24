@@ -16,6 +16,7 @@ export interface AuditFlags {
   json?: boolean;
   fetch?: boolean;
   remote?: string;
+  strictOverlap?: boolean;
 }
 
 /** Audit local tag history; remote tags are fetched only when explicitly requested. */
@@ -24,7 +25,9 @@ export async function runAudit(cwd: string, flags: AuditFlags): Promise<number> 
     const resolved = await resolveConfig(cwd);
     await ensureRepo({ cwd });
     if (flags.fetch) await fetchTags({ cwd, remote: flags.remote });
-    const report = auditTags(await listTags({ cwd }), resolved.config.lines);
+    const report = auditTags(await listTags({ cwd }), resolved.config.lines, {
+      strictOverlap: flags.strictOverlap,
+    });
     const artifacts = await auditArtifactVersions(cwd, resolved.config.lines, report.lines);
     const remote = flags.fetch
       ? { checked: true, name: flags.remote ?? "origin" }

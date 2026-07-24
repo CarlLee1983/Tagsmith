@@ -7,6 +7,22 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-24
+
+### 新增
+
+- `audit` 會在任何衝突 tag 出現之前，靜態證明兩條線的 pattern 是否可能接受同一個
+  tag 名稱。結果以 `data.overlaps` 呈現，附上一個經雙方 pattern 驗證過的 witness tag，
+  並產生 `pattern-overlap-certain` 與 `pattern-overlap-possible` 兩個診斷碼。
+- `audit --strict-overlap` 可把上述兩碼由 warning 提升為 error，讓 CI 直接拒絕有歧義
+  的設定。
+
+### 變更
+
+- `CompiledPattern` 對外提供字面量 `prefix` 與 `suffix`，pattern 語意仍由單一模組擁有。
+- 重疊屬於設定層問題，因此 `list` 輸出完全不變；已經發生碰撞的 tag 仍由既有的
+  `ambiguous-assignment` error 負責。
+
 ## [0.8.0] - 2026-07-23
 
 ### 新增

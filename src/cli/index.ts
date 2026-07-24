@@ -116,6 +116,7 @@ program
   .option("--json", "output versioned JSON")
   .option("--fetch", "fetch tags from the remote before auditing")
   .option("--remote <name>", "remote used by --fetch (default: origin)")
+  .option("--strict-overlap", "treat overlapping tag-line patterns as errors")
   .action(async (opts) => {
     process.exitCode = await runAudit(process.cwd(), opts);
   });

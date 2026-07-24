@@ -9,6 +9,10 @@ export class PatternError extends Error {}
  */
 export interface CompiledPattern {
   readonly template: string;
+  /** Literal text before the placeholder; a tag must start with it. */
+  readonly prefix: string;
+  /** Literal text after the placeholder; a tag must end with it. */
+  readonly suffix: string;
   /** Extract the version substring from a tag name, or null if it doesn't match. */
   extract(tag: string): string | null;
   /** Render a full tag name from a version string. */
@@ -37,6 +41,8 @@ export function compilePattern(template: string): CompiledPattern {
 
   return {
     template,
+    prefix,
+    suffix,
     extract(tag: string): string | null {
       const m = regex.exec(tag);
       return m === null ? null : (m[1] ?? null);
