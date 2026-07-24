@@ -84,3 +84,61 @@ describe("auditTags", () => {
     });
   });
 });
+
+describe("auditTags pattern overlap", () => {
+  const rc: TagLine = { ...app, name: "rc", pattern: "v{version}-rc" };
+  const crossed: TagLine = { ...app, name: "crossed", pattern: "{version}v" };
+
+  it("reports no overlap for disjoint lines, with or without tags", () => {
+    const report = auditTags(["v1.0.0", "release/4"], [app, release]);
+
+    expect(report.overlaps).toEqual([]);
+    expect(report.diagnostics.map((item) => item.code))
+      .not.toContain("pattern-overlap-certain");
+  });
+
+  it("warns before a collision exists, without failing the audit", () => {
+    const report = auditTags(["v1.0.0"], [app, rc]);
+
+    expect(report.ok).toBe(true);
+    expect(report.overlaps).toEqual([
+      expect.objectContaining({ a: "app", b: "rc", witness: "v0.1.0-rc" }),
+    ]);
+    expect(report.diagnostics).toContainEqual({
+      code: "pattern-overlap-certain",
+      severity: "warning",
+      message:
+        'Tag lines "app" and "rc" can produce the same tag: line "rc" renders "v0.1.0-rc" for version 0.1.0, which the other line also matches.',
+      tag: "v0.1.0-rc",
+      lines: ["app", "rc"],
+    });
+  });
+
+  it("separates a theoretical collision from one a line really renders", () => {
+    const report = auditTags([], [app, crossed]);
+
+    expect(report.diagnostics).toContainEqual(expect.objectContaining({
+      code: "pattern-overlap-possible",
+      severity: "warning",
+      tag: "v0v",
+      lines: ["app", "crossed"],
+    }));
+  });
+
+  it("raises overlap diagnostics to errors only under strictOverlap", () => {
+    const report = auditTags(["v1.0.0"], [app, rc], { strictOverlap: true });
+
+    expect(report.ok).toBe(false);
+    expect(report.diagnostics).toContainEqual(expect.objectContaining({
+      code: "pattern-overlap-certain",
+      severity: "error",
+    }));
+  });
+
+  it("keeps single-line configurations free of overlap output", () => {
+    const report = auditTags(["v1.0.0"], [app], { strictOverlap: true });
+
+    expect(report.ok).toBe(true);
+    expect(report.overlaps).toEqual([]);
+  });
+});

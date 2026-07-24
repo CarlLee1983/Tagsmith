@@ -361,10 +361,34 @@ worktree 的 readiness。annotation、signature、target 是候選 tag 的條件
 `artifact-package-json-missing`、`artifact-package-json-malformed`、`artifact-version-missing`、
 `artifact-version-invalid` 與 `artifact-version-mismatch` 都是穩定的 error code。
 
+audit 另外會在完全不涉及任何 tag 的情況下，判定兩條線的 pattern 是否可能接受同一個
+tag 名稱。`data.overlaps` 列出每一對已證實會相交的線，並附上雙方都命中的 witness tag，
+讓結果可以直接重現：
+
+```jsonc
+// tagsmith audit --json，線為 "v{version}" 與 "v{version}-rc"
+"overlaps": [
+  {
+    "a": "app",
+    "b": "rc",
+    "verdict": "overlapping",
+    "witness": "v0.1.0-rc",
+    "witnessSource": "line-version",
+    "witnessOrigin": { "line": "rc", "version": "0.1.0" }
+  }
+]
+```
+
+`pattern-overlap-certain` 代表某條線實際會產生的 tag 也被另一條線命中；
+`pattern-overlap-possible` 代表兩者只在「目前沒有任何線的起始版本會產生」的 tag 上相交。
+兩者都是 warning，因為碰撞尚未發生 —— 已經碰撞的 tag 仍由既有的 `ambiguous-assignment`
+error 負責。加上 `--strict-overlap` 可把這兩碼視為 error 並讓 audit 失敗。
+
 ```bash
 tagsmith audit
 tagsmith audit --json
 tagsmith audit --fetch --remote origin
+tagsmith audit --strict-overlap        # pattern 重疊視為 error
 ```
 
 ### `tagsmith plan --all`

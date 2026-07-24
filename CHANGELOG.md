@@ -8,6 +8,25 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-24
+
+### Added
+
+- `audit` now proves statically whether two configured tag-line patterns can
+  ever accept the same tag name, before any colliding tag exists. Results are
+  reported as `data.overlaps` with a witness tag verified against both
+  patterns, and as the `pattern-overlap-certain` and
+  `pattern-overlap-possible` diagnostics.
+- `audit --strict-overlap` raises both overlap diagnostics from warning to
+  error so CI can reject an ambiguous configuration.
+
+### Changed
+
+- `CompiledPattern` exposes its literal `prefix` and `suffix`, keeping pattern
+  semantics owned by a single module.
+- Overlap findings are configuration-level, so `list` output is unchanged and
+  already-colliding tags remain the existing `ambiguous-assignment` error.
+
 ## [0.8.0] - 2026-07-23
 
 ### Added

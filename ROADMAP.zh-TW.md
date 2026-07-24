@@ -37,6 +37,7 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 | 2 | `0.6` | Release Readiness | 已發佈：團隊可宣告、稽核並選擇性強制執行「現在可否發版」。 |
 | 3 | `0.7` | Monorepo release planning | 已發佈：多 workspace 可先得到完整發版計畫，再由既有流程逐一建立 tag。 |
 | 4 | `0.8` | Artifact 與 commit-policy 一致性 | 已發佈：tag、發行產物版本與 commit 規則可在建立前交叉驗證。 |
+| 5 | `0.9` | 靜態 pattern 重疊證明 | 已實作：設定多條 tag line 時，衝突在任何 tag 出現之前就被證明並附上可重現的例子。 |
 | 未排程 | 擴充機制與進階信任 | 只在真實使用需求成立後處理。 |
 
 版本號代表開發順序，不代表承諾的發布日期；每階段開始前仍應以實際 issue 或設計
@@ -183,13 +184,54 @@ Conventional Commit 約定。
 - 自動修改 `package.json`、lockfile 或 changelog。
 - 支援任意 shell command 作為 version source。
 
+## 0.9 — 靜態 pattern 重疊證明
+
+> 實作狀態：完成，待發行 `0.9.0`。設計與實作紀錄見
+> [`2026-07-24-static-pattern-overlap-design.md`](docs/history/designs/2026-07-24-static-pattern-overlap-design.md)
+> 與 [`2026-07-24-static-pattern-overlap.md`](docs/history/plans/2026-07-24-static-pattern-overlap.md)。
+
+### 目標
+
+把多 tag line 的設定衝突從「發版當下才發現」提前到「寫設定當下就看得見」。
+`audit` 目前只能對已存在的 tag 判斷歧義；兩條 pattern 是否可能接受同一個字串，
+在設定階段完全沒有訊號。
+
+採用門檻（原列為未排程）已成立：掃描既有 tag 永遠慢一步，且衝突浮現時歷史已經
+存在，而 Tagsmith 不改寫歷史。判定本身是封閉、精確、多項式時間的演算法，不是
+啟發式，不會帶來難以解釋的誤報。
+
+### 功能範圍
+
+- 新增純 module，對每一對 tag line 判定 pattern 語言是否相交，並附一個經雙方
+  `extract` 驗證過的 witness。
+- `audit` 增補 `overlaps` 與 `pattern-overlap-certain` / `pattern-overlap-possible`
+  兩個診斷碼；預設為 warning，`audit --strict-overlap` 可提升為 error。
+- witness 優先取「某條線實際會產生的 tag」，退而求其次才用建構式反例；兩者以
+  診斷碼區分，讓呼叫端不必解析訊息就能判斷嚴重度。
+
+### 完成條件
+
+- 判定對每一對線都給出明確結果，沒有 undecidable 分支；`overlapping` 必定附帶
+  可重現的 witness，`disjoint` 有窮舉交叉驗證。
+- 單線設定、既有多線設定與所有現有指令行為不變；`schemaVersion` 維持 `1`。
+- 判定與 `assignTagsToLines` 使用同一套 pattern-only 語意，避免 audit 顯示與實際
+  歸屬分歧。
+- 核心判定為純函式，不讀 Git、不依賴時鐘；CLI、Action 與測試共用同一個 Interface。
+
+### 不納入
+
+- 自動修改 pattern、重新命名或刪除既有 tag。
+- model 層級的版本語言交集判定；assignment 是 pattern-only 的，加上 model 會讓
+  audit 與實際歸屬不一致。
+- `releasePolicy` 的「重疊即不得發版」旗標；等真實需求出現再設計，本階段先讓
+  事實可見。
+
 ## 未排程候選項目
 
 | 候選 | 採用門檻 |
 | --- | --- |
 | 外部 VersionModel / artifact source plugins | 至少兩個真實、無法以內建設定涵蓋的需求，且能定義安全的驗證與載入模型。 |
 | 簽名與 provenance 的進階驗證 | 已確認目標 Git/GPG 或 Sigstore 工作流，並能在本地與 CI 做可重現驗證。 |
-| 靜態 pattern 重疊證明 | 實際 repository tag 掃描不足以滿足使用者需求時。 |
 | 發版平台整合 | 僅提供乾淨的 JSON / Action outputs；不取得發布流程主導權。 |
 
 ## 每個階段的共同交付要求
