@@ -23,6 +23,14 @@ Git 操作用 `node:child_process` 的 `execFile`，不引入重依賴、不經 
   步驟見 `CONTRIBUTING.md`。
 - **安全保證不可退化**：建立 tag 前必須驗證「格式符合 pattern、版本可解析、嚴格遞增、
   不重複」。改動 `plan.ts` / 模型 `bump`/`parse` 時，務必保留這些不變式並補測試。
+- **診斷碼是封閉登記表**：所有 `code` 必須登記於 `src/core/diagnostics.ts`，並同步
+  `json-output.schema.json` 的 enum 與中英 README 表格（契約測試逐字比對）；發出診斷的
+  聯集一律以 `AssertRegistered<...>` 包裹。移除或改名診斷碼是 breaking change。
+- **1.0 契約表面不可退化**：指令與旗標、exit code（只有 `0`/`1`，不得細分）、JSON
+  envelope 與已文件化的 `data` 欄位、診斷碼、設定檔、`action.yml` inputs/outputs、
+  `engines.node` 受 SemVer 保護；人類可讀文字、`message` 字串與 `dist/` 結構不受保護。
+  `tests/json-contract.test.ts`、`tests/exit-codes.test.ts`、`tests/package-surface.test.ts`
+  失敗時，先問「契約是否該改」，不要改測試遷就實作。
 
 ## 設定格式與多線架構
 

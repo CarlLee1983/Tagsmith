@@ -50,6 +50,36 @@ npm run build            # 編譯到 dist/
 
 新增設定欄位時，`lineSchema`（多線路徑）與 `legacyConfigSchema`（舊格式路徑）可能都需要調整。
 
+## 穩定性契約
+
+自 1.0 起，下列表面受 SemVer 保護：指令與旗標名稱、exit code、JSON envelope 與
+已文件化的 `data` 欄位、診斷碼、`.tagsmith.json` 欄位、`action.yml` 的
+inputs / outputs、`engines.node` 宣告範圍。人類可讀輸出文字、診斷的 `message`
+字串與 `dist/` 內部結構明確**不受**保護。完整清單見中英文 README。
+
+- 增補（新欄位、新診斷碼、新旗標）於 minor 版本發佈；文件已要求呼叫端忽略未知欄位、
+  遇未知 `code` 時改看 `severity`。
+- 移除或改名任何受保護項目需要 major 版本，並在 changelog 的破壞性變更區塊列出。
+- exit code 維持 `0` / `1`，不可新增第三種：既有 `$? -eq 1` 的腳本會靜默失效，
+  失敗分類應由診斷碼承載。
+- `tests/json-contract.test.ts`、`tests/exit-codes.test.ts`、
+  `tests/package-surface.test.ts` 就是這些承諾的具體形式。它們失敗時要當成「契約是否
+  該改」的問題，而不是把測試改掉。
+
+## 新增一個診斷碼
+
+`src/core/diagnostics.ts` 的登記表是封閉的，新增一個碼必須同時改四處，否則編譯或
+契約測試會失敗：
+
+1. 在 `DIAGNOSTIC_CODES` 的對應分組加入字面值。
+2. 在 `json-output.schema.json` 的 `diagnosticCode` enum 加入同一個字面值；
+   契約測試會逐字比對兩份清單。
+3. 在 `README.md` 與 `docs/README.zh-TW.md` 的診斷碼表格補上說明。
+4. 只從以 `AssertRegistered<...>` 包裹的聯集發出該碼，讓未登記的碼維持為編譯錯誤。
+
+注意 `releaseReadiness.checks[].code` 是另一組較短的碼，描述「執行了哪項檢查」，
+屬於 `data` 契約而非診斷碼登記表。
+
 ## 新增一種版本模型
 
 版本模型實作 `src/types.ts` 的 `VersionModel` 介面（`parse` / `compare` /
@@ -83,6 +113,8 @@ npm run build            # 編譯到 dist/
   - 整合 — `tests/integration.test.ts`（在 `os.tmpdir()` 建臨時 git repo）
   - 指令 — `tests/commands.test.ts`（in-process）、`tests/cli.test.ts`（built binary E2E）
 - CLI E2E 需先 `npm run build`。
+- 每個 PR 與推送至 `main` 都會在 Node 22 與 24 上執行 `typecheck`、`build`、
+  測試與覆蓋率門檻。
 - 每個 PR 與推送至 `main` 都會執行
   [Docsentry](https://github.com/CarlLee1983/Docsentry)，將現行面向使用者的 Markdown
   與 `package.json`、`schema.json`、`action.yml` 交叉驗證；`docs/history/` 的歷史紀錄

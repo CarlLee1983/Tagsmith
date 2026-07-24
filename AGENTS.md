@@ -10,6 +10,12 @@ version, treat the release as incomplete until all of the following are done:
 2. Create and push an annotated Git tag for that version.
 3. Create a published GitHub Release for the same tag, with notes derived from
    the matching `CHANGELOG.md` entry.
-4. Verify and report both the tag and GitHub Release URLs.
+4. Publish the same version to npm with `npm publish`. This step is
+   irreversible — a published version cannot be replaced, and unpublishing is
+   restricted — so ask the user for explicit confirmation immediately before
+   running it, and never run it as an inferred part of another task.
+5. Mark the version as released in `ROADMAP.zh-TW.md`.
+6. Verify and report the tag URL, the GitHub Release URL, and the published npm
+   version.
 
 Create only a Git tag when the user explicitly requests 「只打 tag」 (tag only).

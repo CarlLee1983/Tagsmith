@@ -61,7 +61,7 @@ The dedicated static HTML route at `/workflow/` and `/en/workflow/` that takes a
 _Avoid_: Primary conversion, project-verification link
 
 **First-use path**:
-The zero-commitment way a visitor attempts Tagsmith for the first time: in a Git repository with Node.js 18+ available, run `npx @carllee1983/tagsmith list`. Preview with `next` only when the convention is clear; otherwise configure it, inspect again, then preview.
+The zero-commitment way a visitor attempts Tagsmith for the first time: in a Git repository with Node.js 22+ available, run `npx @carllee1983/tagsmith list`. Preview with `next` only when the convention is clear; otherwise configure it, inspect again, then preview.
 _Avoid_: Global installation, project adoption
 
 **Zero-configuration evaluation**:
