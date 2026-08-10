@@ -1,5 +1,18 @@
 # Repository agent guidance
 
+## Graft usage
+
+For repository orientation, feature discovery, cross-file changes,
+dependency analysis, and refactoring:
+
+- Use `graft_repo_map` before exploring an unfamiliar area.
+- Use `graft_find_code` before broad manual file searches.
+- Use `graft_file_api` before reading an entire large file.
+- Use `graft_trace_calls` before changing public symbols or contracts.
+- Use `graft_find_all` when exhaustive matching is required.
+- Run `graft_check_freshness` after code changes.
+- Fall back to native file search when Graft results are incomplete.
+
 ## Releases
 
 When the user asks to **formally release** (for example, 「正式發佈」) a
