@@ -463,8 +463,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
       - id: tagsmith
         uses: CarlLee1983/Tagsmith@main # Pin a release tag or commit SHA in production.
         with:
