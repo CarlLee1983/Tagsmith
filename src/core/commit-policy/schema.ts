@@ -9,7 +9,7 @@ const ruleSchema = z.object({
   breaking: z.boolean().optional(),
   release: releaseLevelSchema.optional(),
   ignore: z.literal(true).optional(),
-}).superRefine((rule, ctx) => {
+}).strict().superRefine((rule, ctx) => {
   const outcomes = Number(rule.release !== undefined) + Number(rule.ignore === true);
   if (outcomes !== 1) {
     ctx.addIssue({
@@ -22,4 +22,4 @@ const ruleSchema = z.object({
 /** Shared config contract for ordered Conventional Commit release rules. */
 export const commitPolicySchema = z.object({
   rules: z.array(ruleSchema).min(1),
-});
+}).strict();

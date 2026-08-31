@@ -21,6 +21,7 @@ import { selectLine, assignTagsToLines } from "../src/core/lines.js";
 import { runNext } from "../src/cli/next.js";
 import { runCreate } from "../src/cli/create.js";
 import { runAudit } from "../src/cli/audit.js";
+import { runPlan } from "../src/cli/plan.js";
 import type { TagsmithConfig } from "../src/types.js";
 
 /** Capture everything written to stdout/stderr during `fn`. */
@@ -174,6 +175,102 @@ describe("git integration", () => {
     expect(await listCommitMessages({ cwd: dir, from })).toEqual([
       expect.objectContaining({ message: "feat(cli): add a release preview\n\nMore detail.\n" }),
     ]);
+  });
+
+  it("fails closed when --from-commits cannot see history back to the latest tag", async () => {
+    const remote = await mkdtemp(path.join(tmpdir(), "tagsmith-history-remote-"));
+    const shallow = await mkdtemp(path.join(tmpdir(), "tagsmith-history-shallow-"));
+    try {
+      await writeFile(
+        path.join(dir, ".tagsmith.json"),
+        JSON.stringify({
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+        }),
+      );
+      execFileSync("git", ["add", ".tagsmith.json"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "chore: configure tags"], { cwd: dir });
+      execFileSync("git", ["tag", "v1.0.0"], { cwd: dir });
+      execFileSync("git", ["commit", "--allow-empty", "-q", "-m", "feat: intermediate feature"], { cwd: dir });
+      execFileSync("git", ["commit", "--allow-empty", "-q", "-m", "fix: latest fix"], { cwd: dir });
+      execFileSync("git", ["clone", "--bare", "-q", dir, remote]);
+      await rm(shallow, { recursive: true, force: true });
+      execFileSync("git", ["clone", "--depth=1", "-q", `file://${remote}`, shallow]);
+      execFileSync("git", ["fetch", "--tags", "origin"], { cwd: shallow });
+
+      const result = await capture(() => runNext(shallow, { fromCommits: true, json: true }));
+      const json = JSON.parse(result.stdout);
+
+      expect(result.code).toBe(1);
+      expect(json.data).toBeNull();
+      expect(json.diagnostics).toContainEqual(expect.objectContaining({
+        code: "incomplete-git-history",
+        severity: "error",
+      }));
+
+      const created = await capture(() =>
+        runCreate(shallow, { fromCommits: true, dryRun: true })
+      );
+      expect(created.code).toBe(1);
+      expect(created.stderr).toContain("Git history is incomplete");
+
+      const planned = await capture(() =>
+        runPlan(shallow, { all: true, fromCommits: true, json: true })
+      );
+      expect(planned.code).toBe(1);
+      expect(JSON.parse(planned.stdout).diagnostics[0].code).toBe(
+        "incomplete-git-history",
+      );
+    } finally {
+      await rm(remote, { recursive: true, force: true });
+      await rm(shallow, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects shallow merge history even when the latest tag is still an ancestor", async () => {
+    const remote = await mkdtemp(path.join(tmpdir(), "tagsmith-merge-remote-"));
+    const shallow = await mkdtemp(path.join(tmpdir(), "tagsmith-merge-shallow-"));
+    try {
+      await writeFile(path.join(dir, ".tagsmith.json"), JSON.stringify({
+        pattern: "v{version}",
+        model: { type: "semver" },
+        initialVersion: "1.0.0",
+      }));
+      execFileSync("git", ["add", ".tagsmith.json"], { cwd: dir });
+      execFileSync("git", ["commit", "-q", "-m", "chore: configure tags"], { cwd: dir });
+      execFileSync("git", ["tag", "v1.0.0"], { cwd: dir });
+      const main = execFileSync("git", ["branch", "--show-current"], {
+        cwd: dir,
+        encoding: "utf8",
+      }).trim();
+      execFileSync("git", ["checkout", "-q", "-b", "feature"], { cwd: dir });
+      for (let index = 1; index <= 5; index += 1) {
+        execFileSync("git", ["commit", "--allow-empty", "-q", "-m", `feat: branch ${index}`], {
+          cwd: dir,
+        });
+      }
+      execFileSync("git", ["checkout", "-q", main], { cwd: dir });
+      execFileSync("git", ["commit", "--allow-empty", "-q", "-m", "fix: main"], { cwd: dir });
+      execFileSync("git", ["merge", "--no-ff", "-q", "feature", "-m", "merge feature"], {
+        cwd: dir,
+      });
+      execFileSync("git", ["clone", "--bare", "-q", dir, remote]);
+      await rm(shallow, { recursive: true, force: true });
+      execFileSync("git", ["clone", "--depth=3", "-q", `file://${remote}`, shallow]);
+      execFileSync("git", ["fetch", "--tags", "origin"], { cwd: shallow });
+
+      expect(execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+        cwd: shallow,
+        encoding: "utf8",
+      }).trim()).toBe("true");
+      const result = await capture(() => runNext(shallow, { fromCommits: true, json: true }));
+      expect(result.code).toBe(1);
+      expect(JSON.parse(result.stdout).diagnostics[0].code).toBe("incomplete-git-history");
+    } finally {
+      await rm(remote, { recursive: true, force: true });
+      await rm(shallow, { recursive: true, force: true });
+    }
   });
 
   it("scopes commit history to a repository-relative workspace", async () => {
@@ -383,6 +480,28 @@ describe("git integration", () => {
       .trim()
       .split("\n");
     expect(tagsAfter).toContain("v1.0.1");
+  });
+
+  it("rejects a configured candidate that is not a valid Git tag", async () => {
+    await writeFile(
+      path.join(dir, ".tagsmith.json"),
+      JSON.stringify({
+        pattern: "v{version}\nhas-releases=false",
+        model: { type: "semver" },
+        initialVersion: "1.0.0",
+      }),
+      "utf8",
+    );
+
+    const result = await capture(() => runNext(dir, { json: true }));
+    const json = JSON.parse(result.stdout);
+
+    expect(result.code).toBe(1);
+    expect(json.data).toBeNull();
+    expect(json.diagnostics).toContainEqual(expect.objectContaining({
+      code: "invalid-git-tag",
+      severity: "error",
+    }));
   });
 
   it("two lines bump independently end-to-end", async () => {

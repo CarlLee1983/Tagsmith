@@ -7,6 +7,20 @@
 
 ## [Unreleased]
 
+### 新增
+
+- 嚴格的 runtime 設定驗證、JSON Schema parity，以及未知欄位的完整錯誤位置。
+- 穩定診斷碼 `incomplete-git-history` 與 `invalid-git-tag`。
+
+### 安全性
+
+- 依 commit 規劃版本時，Git 歷史不完整會 fail closed；可重用 Action 在啟用 fetch
+  時會補全 shallow history。
+- 所有候選都會套用 Git tag ref 規則；Action outputs 改用不可碰撞的 multiline
+  delimiter。
+- CI 稽核 production dependencies，第三方 Actions 固定到 commit SHA，Dependabot
+  同時涵蓋 npm 與 GitHub Actions。
+
 ## [1.0.0] - 2026-07-24
 
 指令輸出、結束代碼與設定檔皆與 `0.9.0` 相同，JSON 的 `schemaVersion` 維持 `1`。
@@ -218,7 +232,9 @@
 - 三層架構：`core/`（純函式）、`git/`（`execFile` 薄封裝）、`cli/`（commander）。
 - 測試：68 個（vitest），覆蓋率 84%，含臨時 git repo 整合測試與 built-binary E2E。
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.9.0...v1.0.0
+[0.9.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0

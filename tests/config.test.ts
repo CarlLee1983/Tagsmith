@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   parseConfig,
   loadConfig,
@@ -10,6 +11,24 @@ import {
 } from "../src/core/config.js";
 
 describe("parseConfig (legacy flat)", () => {
+  it("rejects unknown keys with their complete config path", () => {
+    let error: unknown;
+    try {
+      parseConfig({
+        pattern: "v{version}",
+        model: { type: "semver" },
+        initialVersion: "0.1.0",
+        pussh: true,
+        releasePolicy: { requireCleanWorktreee: true },
+      });
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(ConfigError);
+    expect((error as Error).message).toContain("pussh");
+    expect((error as Error).message).toContain("releasePolicy.requireCleanWorktreee");
+  });
+
   it("normalises a legacy flat config into a single default line", () => {
     const cfg = parseConfig({
       pattern: "v{version}",
@@ -21,6 +40,27 @@ describe("parseConfig (legacy flat)", () => {
     expect(cfg.lines[0].name).toBe("default");
     expect(cfg.lines[0].pattern).toBe("v{version}");
     expect(cfg.default).toBe("default");
+  });
+
+  it("accepts $schema and mergePolicy used by this repository", () => {
+    const cfg = parseConfig({
+      $schema: "./schema.json",
+      pattern: "v{version}",
+      model: { type: "semver", allowPrerelease: true },
+      initialVersion: "0.1.0",
+      push: false,
+      mergePolicy: {
+        protectedBranches: { main: { allow: ["feat/*", "fix/*"] } },
+        onUnknownSource: "block",
+      },
+    });
+
+    expect(cfg.lines[0]?.pattern).toBe("v{version}");
+  });
+
+  it("loads the repository's checked-in config", async () => {
+    const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+    expect((await loadConfig(root)).lines[0]?.pattern).toBe("v{version}");
   });
 
   it("defaults legacy push to false", () => {
@@ -102,6 +142,53 @@ describe("parseConfig (multi-line)", () => {
     ],
     default: "app",
   };
+
+  it("rejects unknown keys from every nested config object", () => {
+    const cases: Array<[string, unknown]> = [
+      ["tags.0.pussh", { tags: [{ ...base.tags[0], pussh: true }] }],
+      ["tags.0.model.allowPrereleasee", {
+        tags: [{ ...base.tags[0], model: { type: "semver", allowPrereleasee: true } }],
+      }],
+      ["tags.0.model.formatt", {
+        tags: [{ ...base.tags[1], model: { type: "calver", format: "YYYY.MM.MICRO", formatt: "x" } }],
+      }],
+      ["tags.0.model.paddding", {
+        tags: [{ ...base.tags[0], model: { type: "build", paddding: 4 } }],
+      }],
+      ["tags.0.artifact.path", {
+        tags: [{ ...base.tags[0], artifact: { type: "package-json", path: "package.json" } }],
+      }],
+      ["releasePolicy.requireCleanWorktreee", {
+        ...base,
+        releasePolicy: { requireCleanWorktreee: true },
+      }],
+      ["commitPolicy.extra", {
+        ...base,
+        commitPolicy: { rules: [{ type: "feat", release: "minor" }], extra: true },
+      }],
+      ["commitPolicy.rules.0.releasse", {
+        ...base,
+        commitPolicy: { rules: [{ type: "feat", release: "minor", releasse: "patch" }] },
+      }],
+      ["mergePolicy.onUnknownSourcee", {
+        ...base,
+        mergePolicy: {
+          protectedBranches: { main: { allow: ["feat/*"] } },
+          onUnknownSourcee: "allow",
+        },
+      }],
+      ["mergePolicy.protectedBranches.main.alloww", {
+        ...base,
+        mergePolicy: {
+          protectedBranches: { main: { allow: ["feat/*"], alloww: ["fix/*"] } },
+        },
+      }],
+    ];
+
+    for (const [path, raw] of cases) {
+      expect(() => parseConfig(raw), path).toThrow(new RegExp(path.replaceAll(".", "\\.")));
+    }
+  });
 
   it("parses a multi-line config", () => {
     const cfg = parseConfig(base);

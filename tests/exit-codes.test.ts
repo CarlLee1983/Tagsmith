@@ -94,6 +94,12 @@ describe("exit code contract", () => {
     it("exits 1 when any tag fails", async () => {
       expect(await silence(() => runCheck(dir, ["v1.2.3", "junk"], {}))).toBe(1);
     });
+
+    it("exits 1 for names Git cannot store as tags", async () => {
+      for (const candidate of ["v1.0.0\nextra=true", "v 1.0.0", "v1..0", "release.lock"]) {
+        expect(await silence(() => runCheck(dir, [candidate], {}))).toBe(1);
+      }
+    });
   });
 
   describe("next", () => {
@@ -106,6 +112,13 @@ describe("exit code contract", () => {
       await writeLines(dir);
       // --require-changes without a workspace has no safe answer.
       expect(await silence(() => runNext(dir, { requireChanges: true }))).toBe(1);
+    });
+
+    it("exits 1 rather than planning from incomplete history", async () => {
+      git(dir, ["tag", "v1.0.0"]);
+      git(dir, ["commit", "--allow-empty", "-q", "-m", "feat: hidden parent"]);
+      await writeFile(path.join(dir, ".git", "shallow"), `${git(dir, ["rev-parse", "HEAD"]).trim()}\n`);
+      expect(await silence(() => runNext(dir, { fromCommits: true }))).toBe(1);
     });
   });
 

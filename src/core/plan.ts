@@ -1,6 +1,7 @@
 import type { BumpLevel, TagLine, VersionModel } from "../types.js";
 import { compilePattern } from "./pattern.js";
 import { analyzeTags, type Analysis } from "./analyze.js";
+import { assertValidGitTagName } from "./git-tag.js";
 
 export interface NextPlan {
   /** The full next tag name, e.g. "v1.2.4". */
@@ -31,8 +32,10 @@ export function planNext(
 
   if (analysis.latest === null) {
     const initial = model.initial(line.initialVersion);
+    const tag = pattern.render(model.format(initial));
+    assertValidGitTagName(tag);
     return {
-      tag: pattern.render(model.format(initial)),
+      tag,
       version: model.format(initial),
       fromVersion: null,
       fresh: true,
@@ -48,8 +51,10 @@ export function planNext(
     );
   }
 
+  const tag = pattern.render(model.format(next));
+  assertValidGitTagName(tag);
   return {
-    tag: pattern.render(model.format(next)),
+    tag,
     version: model.format(next),
     fromVersion: model.format(current),
     fresh: false,

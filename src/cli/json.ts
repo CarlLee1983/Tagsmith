@@ -1,4 +1,8 @@
-import type { DiagnosticCode, DiagnosticSeverity } from "../core/diagnostics.js";
+import {
+  DIAGNOSTIC_CODES,
+  type DiagnosticCode,
+  type DiagnosticSeverity,
+} from "../core/diagnostics.js";
 import { info } from "./ui.js";
 
 export const JSON_SCHEMA_VERSION = 1 as const;
@@ -55,8 +59,18 @@ export function emitJson<T>(
 export function emitJsonError(command: JsonCommand, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
   emitJson(command, null, [{
-    code: "command-error",
+    code: diagnosticCode(err),
     severity: "error",
     message,
   }]);
+}
+
+function diagnosticCode(err: unknown): DiagnosticCode {
+  if (typeof err !== "object" || err === null || !("diagnosticCode" in err)) {
+    return "command-error";
+  }
+  const code = err.diagnosticCode;
+  return (DIAGNOSTIC_CODES as readonly unknown[]).includes(code)
+    ? code as DiagnosticCode
+    : "command-error";
 }

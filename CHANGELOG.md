@@ -8,6 +8,21 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Strict runtime configuration validation with JSON Schema parity and complete
+  paths for unknown fields.
+- Stable `incomplete-git-history` and `invalid-git-tag` diagnostics.
+
+### Security
+
+- Commit-derived planning now fails closed on incomplete Git history, and the
+  reusable Action completes shallow history when configured to fetch tags.
+- Every generated candidate is checked against Git tag-ref rules, and Action
+  outputs use collision-resistant multiline delimiters.
+- CI audits production dependencies, third-party Actions are pinned to commit
+  SHAs, and Dependabot covers npm and GitHub Actions dependencies.
+
 ## [1.0.0] - 2026-07-24
 
 Command output, exit codes and configuration are unchanged from `0.9.0`; the
@@ -210,7 +225,9 @@ makes the contract machine-checked.
 - A three-layer core/git/CLI architecture and unit, integration, and CLI E2E
   test coverage.
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.9.0...v1.0.0
+[0.9.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.5.0...v0.6.0

@@ -36,6 +36,7 @@
         "model": { "$ref": "#/definitions/model" },
         "initialVersion": {
           "type": "string",
+          "minLength": 1,
           "description": "Version used when no conforming tag exists yet."
         },
         "push": {
@@ -61,8 +62,14 @@
   "definitions": {
     "pattern": {
       "type": "string",
-      "description": "Tag template; must contain the {version} placeholder.",
-      "pattern": "\\{version\\}"
+      "description": "Git-valid tag template containing exactly one {version} placeholder.",
+      "allOf": [
+        { "pattern": "^(?!.*\\{version\\}.*\\{version\\}).*\\{version\\}.*$" },
+        { "not": { "pattern": "[\\u0000-\\u0020\\u007f~^:?*]" } },
+        { "not": { "pattern": "\\[" } },
+        { "not": { "pattern": "\\\\" } },
+        { "not": { "pattern": "\\.\\.|@\\{|//|^[-/]|/$|\\.$|(^|/)\\.|\\.lock($|/)" } }
+      ]
     },
     "model": {
       "oneOf": [
@@ -83,6 +90,7 @@
             "type": { "const": "calver" },
             "format": {
               "type": "string",
+              "minLength": 1,
               "description": "Token sequence using YYYY YY MM DD MICRO, e.g. YYYY.MM.MICRO."
             }
           }
@@ -121,6 +129,7 @@
         "model": { "$ref": "#/definitions/model" },
         "initialVersion": {
           "type": "string",
+          "minLength": 1,
           "description": "Version used when no conforming tag exists yet."
         },
         "push": {

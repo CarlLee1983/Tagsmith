@@ -1,4 +1,5 @@
 import type { CompiledPattern } from "./pattern.js";
+import { isValidGitTagName } from "./git-tag.js";
 import type { ParsedTag, VersionModel } from "../types.js";
 
 export interface AnalyzedTag extends ParsedTag {
@@ -58,6 +59,15 @@ export function classify(
   pattern: CompiledPattern,
   model: VersionModel,
 ): AnalyzedTag {
+  if (!isValidGitTagName(raw)) {
+    return {
+      raw,
+      versionString: null,
+      version: null,
+      anomaly: "invalid-git-tag",
+      conforming: false,
+    };
+  }
   const versionString = pattern.extract(raw);
   if (versionString === null) {
     return {

@@ -200,6 +200,20 @@ describe("JSON output contract", () => {
       expectValid(fail.json, "check (fail)");
       expect(fail.json.diagnostics[0].code).toBe("pattern-mismatch");
     });
+
+    it("publishes invalid Git tag diagnostics without changing the envelope", async () => {
+      const result = await capture(() => runCheck(
+        dir,
+        ["v1.0.0\nextra=true", "v 1.0.0", "v1..0", "release.lock"],
+        { json: true },
+      ));
+      expectValid(result.json, "check (invalid Git tags)");
+      expect(result.code).toBe(1);
+      expect(result.json.diagnostics).toHaveLength(4);
+      expect(result.json.diagnostics.every(
+        (diagnostic: { code: string }) => diagnostic.code === "invalid-git-tag",
+      )).toBe(true);
+    });
   });
 
   describe("next", () => {
@@ -213,6 +227,17 @@ describe("JSON output contract", () => {
       const derived = await capture(() => runNext(dir, { json: true, fromCommits: true }));
       expectValid(derived.json, "next --from-commits");
       expect(derived.json.data.recommendation.level).toBe("minor");
+    });
+
+    it("validates the incomplete-history diagnostic envelope", async () => {
+      git(dir, ["tag", "v1.0.0"]);
+      git(dir, ["commit", "--allow-empty", "-q", "-m", "feat: hidden parent"]);
+      await writeFile(path.join(dir, ".git", "shallow"), `${git(dir, ["rev-parse", "HEAD"]).trim()}\n`);
+
+      const result = await capture(() => runNext(dir, { json: true, fromCommits: true }));
+      expectValid(result.json, "next --from-commits (incomplete history)");
+      expect(result.code).toBe(1);
+      expect(result.json.diagnostics[0].code).toBe("incomplete-git-history");
     });
   });
 

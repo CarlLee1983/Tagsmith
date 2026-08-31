@@ -131,6 +131,7 @@ export interface ParsedTag {
 }
 
 export type TagAnomaly =
+  | "invalid-git-tag" // rejected by Git's tag-ref naming rules
   | "pattern-mismatch" // does not match the configured pattern
   | "unparseable-version" // matched pattern but version could not be parsed
   | "duplicate-version" // another tag resolves to the same version

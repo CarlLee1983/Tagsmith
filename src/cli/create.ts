@@ -26,6 +26,7 @@ import {
   printReleaseReadiness,
 } from "./release-readiness.js";
 import { inspectArtifactVersion, printArtifactVersion } from "./artifact.js";
+import { assertValidGitTagName } from "../core/git-tag.js";
 
 export interface CreateFlags {
   level?: string;
@@ -104,6 +105,7 @@ export async function runCreate(cwd: string, flags: CreateFlags): Promise<number
       tagName = plan.tag;
     }
 
+    assertValidGitTagName(tagName);
     if (lineTags.includes(tagName)) {
       printError(`Tag "${tagName}" already exists.`);
       return 1;

@@ -11,7 +11,7 @@ export const releasePolicySchema = z.object({
   requireHeadTag: z.boolean().default(false),
   signature: z.enum(["optional", "required"]).default("optional"),
   requireArtifactVersion: z.boolean().default(false),
-});
+}).strict();
 
 export class ReleasePolicyError extends Error {}
 

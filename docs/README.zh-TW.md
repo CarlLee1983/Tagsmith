@@ -106,7 +106,7 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 | 欄位 | 必填 | 說明 |
 |------|:---:|------|
 | `name` | ✓ | 線名，全陣列唯一，供 `--tag` 指定 |
-| `pattern` | ✓ | tag 樣式，**必含** `{version}` 佔位符。例：`v{version}`、`release/{version}` |
+| `pattern` | ✓ | 合法 Git tag 樣式，且**恰好包含一個** `{version}` 佔位符。例：`v{version}`、`release/{version}` |
 | `model` | ✓ | 版本模型物件（見下） |
 | `initialVersion` | ✓ | 無既有合規 tag 時的起點 |
 | `push` | | `create` 是否預設 push（預設 `false`） |
@@ -137,6 +137,10 @@ tagsmith create --level minor -m "Release 1.2.0" --push
 Tagsmith 載入時會自動將其視為一條名為 `default` 的單線設定；現有使用者**零修改**即可繼續使用。
 
 可在檔案加上 `"$schema": "./node_modules/@carllee1983/tagsmith/schema.json"` 取得編輯器補全與驗證。
+
+所有層級的設定物件都會拒絕未知欄位，不會靜默丟棄 typo 再套用預設值；錯誤會包含
+完整位置，例如 `tags.0.pussh`。舊格式與多線格式都可合法使用 `$schema` 與
+`mergePolicy`。
 
 ### Monorepo workspace
 
@@ -251,6 +255,10 @@ remote。`tagsmith create --enforce-policy` 會在任何 Git 變更前，以同�
 
 `next --from-commits`、`create --from-commits` 與 `plan --all --from-commits` 的 recommendation
 都會保留相關 commit ID、摘要與命中的 rule。
+
+若 shallow checkout 不含從最新 tag 到 `HEAD` 的完整範圍，上述指令會以
+`incomplete-git-history` 失敗，不會根據部分 commit 靜默算出錯誤 bump。請先取得完整
+歷史，或使用下方 Action 設定。
 
 ### 三種版本模型
 
@@ -584,18 +592,28 @@ jobs:
   tags:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - id: tagsmith
         uses: CarlLee1983/Tagsmith@main # 正式環境請固定 release tag 或 commit SHA。
         with:
           plan-from-commits: "true"
           plan-tag: api
       - if: steps.tagsmith.outputs.has-releases == 'true'
-        run: echo '${{ steps.tagsmith.outputs.plan }}' | jq .
+        env:
+          TAGSMITH_PLAN: ${{ steps.tagsmith.outputs.plan }}
+        run: printf '%s\n' "$TAGSMITH_PLAN" | jq .
 ```
 
 若設定檔不在 repo 根目錄，或已自行同步 tags，可設定：
-`with: { working-directory: packages/api, fetch-tags: "false" }`。Action 的 `plan` output
+`with: { working-directory: packages/api, fetch-tags: "false" }`。
+
+當 `plan-from-commits` 與 `fetch-tags` 都是 `true`，Action 會補全 shallow history，並從
+`remote`（預設 `origin`）取得 tags。若設為 `fetch-tags: "false"`，Action 完全不會 fetch；
+使用者必須自行設定 `fetch-depth: 0`，否則不完整歷史會明確失敗。
+
+Action 的 `plan` output
 是完整 JSON envelope；`has-releases` 在任一 line 為 ready 時為 `true`；`next-tag` 是
 `plan-tag` 或設定預設 line 的 ready candidate（否則為空字串）。它不會建立 tag。
 
@@ -726,8 +744,9 @@ Tagsmith 只用 `0`（成功）與 `1`（其餘），刻意不細分失敗類型
 
 | 分組 | 診斷碼 |
 | --- | --- |
-| Tag 異常 | `pattern-mismatch`、`unparseable-version`、`duplicate-version`、`ambiguous-assignment` |
+| Tag 異常 | `pattern-mismatch`、`unparseable-version`、`duplicate-version`、`ambiguous-assignment`、`invalid-git-tag` |
 | 設定層級 | `orphan-tag`、`pattern-overlap-certain`、`pattern-overlap-possible`、`workspace-required`、`from-commits-unsupported` |
+| Repository 歷史 | `incomplete-git-history` |
 | Artifact 一致性 | `artifact-package-json-missing`、`artifact-package-json-malformed`、`artifact-version-missing`、`artifact-version-invalid`、`artifact-version-mismatch` |
 | 發版政策 | `release-branch-not-allowed`、`release-worktree-dirty`、`release-remote-not-checked`、`release-annotation-required`、`release-target-not-head`、`release-signature-required`、`release-artifact-not-configured`、`release-artifact-version-invalid` |
 | 指令層級 | `command-error`（指令無法完成時發出，此時 `data` 為 `null`） |

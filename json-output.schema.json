@@ -52,6 +52,7 @@
     "diagnosticCode": {
       "description": "The closed registry of diagnostic codes; mirrors DIAGNOSTIC_CODES in src/core/diagnostics.ts.",
       "enum": [
+        "invalid-git-tag",
         "pattern-mismatch",
         "unparseable-version",
         "duplicate-version",
@@ -61,6 +62,7 @@
         "pattern-overlap-possible",
         "workspace-required",
         "from-commits-unsupported",
+        "incomplete-git-history",
         "artifact-package-json-missing",
         "artifact-package-json-malformed",
         "artifact-version-missing",
@@ -106,6 +108,7 @@
     },
     "tagAnomaly": {
       "enum": [
+        "invalid-git-tag",
         "pattern-mismatch",
         "unparseable-version",
         "duplicate-version",

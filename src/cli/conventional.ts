@@ -2,7 +2,7 @@ import {
   recommendConventionalBump,
   type BumpRecommendation,
 } from "../core/conventional.js";
-import { listCommitMessages } from "../git/git.js";
+import { ensureCompleteHistory, listCommitMessages } from "../git/git.js";
 import type { CommitPolicy, TagLine } from "../types.js";
 import { info } from "./ui.js";
 
@@ -19,6 +19,7 @@ export async function recommendBumpFromCommits(
   if (line.model.type !== "semver") {
     throw new Error("--from-commits is supported only for semver tag lines.");
   }
+  await ensureCompleteHistory({ cwd });
   const recommendation = recommendConventionalBump(
     await listCommitMessages({
       cwd,

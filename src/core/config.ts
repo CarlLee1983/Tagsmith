@@ -9,27 +9,31 @@ import type {
   TagsmithConfig,
 } from "../types.js";
 import { DEFAULT_SEMVER_LINE } from "./defaults.js";
+import { CONFIG_FILENAME } from "./constants.js";
 import { hasConformingTag, inferPattern } from "./infer.js";
 import { createModel } from "./models/index.js";
 import { releasePolicySchema } from "./release-policy/schema.js";
 import { commitPolicySchema } from "./commit-policy/schema.js";
+import { mergePolicySchema } from "./merge-policy/schema.js";
+import { assertValidGitTagName } from "./git-tag.js";
+import { compilePattern } from "./pattern.js";
 
-export const CONFIG_FILENAME = ".tagsmith.json";
+export { CONFIG_FILENAME } from "./constants.js";
 
 const semverModelSchema = z.object({
   type: z.literal("semver"),
   allowPrerelease: z.boolean().optional(),
-});
+}).strict();
 
 const calverModelSchema = z.object({
   type: z.literal("calver"),
   format: z.string().min(1),
-});
+}).strict();
 
 const buildModelSchema = z.object({
   type: z.literal("build"),
   padding: z.number().int().min(0).optional(),
-});
+}).strict();
 
 const modelSchema = z.discriminatedUnion("type", [
   semverModelSchema,
@@ -52,7 +56,7 @@ const workspaceSchema = z
 
 const artifactSchema = z.object({
   type: z.literal("package-json"),
-});
+}).strict();
 
 const lineSchema = z.object({
   name: z.string().min(1),
@@ -62,25 +66,29 @@ const lineSchema = z.object({
   push: z.boolean().default(false),
   workspace: workspaceSchema.optional(),
   artifact: artifactSchema.optional(),
-});
+}).strict();
 
 const multiConfigSchema = z.object({
+  $schema: z.string().optional(),
   tags: z.array(lineSchema).min(1),
   default: z.string().optional(),
+  mergePolicy: mergePolicySchema.optional(),
   releasePolicy: releasePolicySchema.optional(),
   commitPolicy: commitPolicySchema.optional(),
-});
+}).strict();
 
 const legacyConfigSchema = z.object({
+  $schema: z.string().optional(),
   pattern: patternSchema,
   model: modelSchema,
   initialVersion: z.string().min(1),
   push: z.boolean().default(false),
   workspace: workspaceSchema.optional(),
   artifact: artifactSchema.optional(),
+  mergePolicy: mergePolicySchema.optional(),
   releasePolicy: releasePolicySchema.optional(),
   commitPolicy: commitPolicySchema.optional(),
-});
+}).strict();
 
 export class ConfigError extends Error {}
 /** Thrown by loadConfig when no config file exists (vs. a malformed one). */
@@ -135,6 +143,7 @@ export function parseConfig(raw: unknown): TagsmithConfig {
     workspace: result.data.workspace,
     artifact: result.data.artifact as ArtifactConfig | undefined,
   };
+  assertInitialCandidate(line);
   return {
     lines: [line],
     default: "default",
@@ -153,6 +162,7 @@ function finalizeMulti(
   releasePolicy: TagsmithConfig["releasePolicy"],
   commitPolicy: TagsmithConfig["commitPolicy"],
 ): TagsmithConfig {
+  for (const line of lines) assertInitialCandidate(line);
   const names = lines.map((l) => l.name);
   const dupes = names.filter((n, i) => names.indexOf(n) !== i);
   if (dupes.length > 0) {
@@ -175,6 +185,12 @@ function finalizeMulti(
   };
 }
 
+function assertInitialCandidate(line: TagLine): void {
+  const model = createModel(line.model);
+  const initial = model.initial(line.initialVersion);
+  assertValidGitTagName(compilePattern(line.pattern).render(model.format(initial)));
+}
+
 function isSafeWorkspacePath(workspace: string): boolean {
   if (path.isAbsolute(workspace) || path.win32.isAbsolute(workspace)) return false;
   return !workspace.split(/[\\/]+/).includes("..");
@@ -182,7 +198,14 @@ function isSafeWorkspacePath(workspace: string): boolean {
 
 function configError(error: z.ZodError): ConfigError {
   const issues = error.issues
-    .map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`)
+    .flatMap((issue) => {
+      if (issue.code === "unrecognized_keys") {
+        return issue.keys.map((key) =>
+          `  - ${[...issue.path, key].join(".")}: ${issue.message}`
+        );
+      }
+      return [`  - ${issue.path.join(".") || "(root)"}: ${issue.message}`];
+    })
     .join("\n");
   return new ConfigError(`Invalid ${CONFIG_FILENAME}:\n${issues}`);
 }

@@ -7,7 +7,14 @@ import {
 } from "../core/release-plan.js";
 import { ambiguousAssignmentsForLine, assignTagsToLines } from "../core/lines.js";
 import { planNext } from "../core/plan.js";
-import { ensureRepo, fetchTags, hasCommittedChanges, listCommitMessages, listTags } from "../git/git.js";
+import {
+  ensureCompleteHistory,
+  ensureRepo,
+  fetchTags,
+  hasCommittedChanges,
+  listCommitMessages,
+  listTags,
+} from "../git/git.js";
 import { emitJson, emitJsonError, type JsonDiagnostic } from "./json.js";
 import { configMetadata, printImplicitConfigNotice } from "./implicit.js";
 import { printError, info, success, warn } from "./ui.js";
@@ -62,6 +69,9 @@ export async function runPlan(cwd: string, flags: PlanFlags): Promise<number> {
       // This uses the same baseline as next before Git probes select the commit range.
       const baseline = planNext(line, model, lineTags);
       const latestTag = baseline.analysis.latest?.raw ?? null;
+      if (flags.fromCommits) {
+        await ensureCompleteHistory({ cwd });
+      }
       const changed = await hasCommittedChanges({
         cwd,
         workspace: line.workspace,

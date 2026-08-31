@@ -2,10 +2,84 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import Ajv from "ajv";
+import { parseConfig } from "../src/core/config.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("JSON schema", () => {
+  it("matches runtime acceptance for strict keys and Git tag patterns", async () => {
+    const schema = JSON.parse(await readFile(path.join(root, "schema.json"), "utf8"));
+    const validate = new Ajv({ strict: false }).compile(schema);
+    const configs = [
+      {
+        $schema: "./schema.json",
+        pattern: "v{version}",
+        model: { type: "semver", allowPrerelease: true },
+        initialVersion: "0.1.0",
+        mergePolicy: {
+          protectedBranches: { main: { allow: ["feat/*"] } },
+          onUnknownSource: "block",
+        },
+      },
+      {
+        tags: [{
+          name: "release",
+          pattern: "release/{version}",
+          model: { type: "calver", format: "YYYY.MM.MICRO" },
+          initialVersion: "2026.08.0",
+          artifact: { type: "package-json" },
+        }],
+        commitPolicy: { rules: [{ type: "feat", release: "minor" }] },
+      },
+      {
+        pattern: "v{version}",
+        model: { type: "semver", allowPrereleasee: true },
+        initialVersion: "0.1.0",
+      },
+      {
+        tags: [{
+          name: "app",
+          pattern: "v{version}",
+          model: { type: "semver" },
+          initialVersion: "0.1.0",
+          pussh: true,
+        }],
+      },
+      {
+        pattern: "v{version}\nhas-releases=false",
+        model: { type: "semver" },
+        initialVersion: "0.1.0",
+      },
+      {
+        pattern: "v{version}-{version}",
+        model: { type: "semver" },
+        initialVersion: "0.1.0",
+      },
+      {
+        pattern: "v{version}",
+        model: { type: "semver" },
+        initialVersion: "",
+      },
+      {
+        pattern: "release/{version}",
+        model: { type: "calver", format: "" },
+        initialVersion: "2026.08.0",
+      },
+    ];
+
+    for (const config of configs) {
+      const schemaAccepts = validate(config);
+      let runtimeAccepts = true;
+      try {
+        parseConfig(config);
+      } catch {
+        runtimeAccepts = false;
+      }
+      expect(runtimeAccepts, JSON.stringify(config)).toBe(schemaAccepts);
+    }
+  });
+
   it("documents both config shapes and workspace-scoped tag lines", async () => {
     const schema = JSON.parse(await readFile(path.join(root, "schema.json"), "utf8"));
 

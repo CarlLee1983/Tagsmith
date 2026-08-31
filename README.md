@@ -117,7 +117,7 @@ with `--tag <name>`.
 | Field | Required | Meaning |
 | --- | :---: | --- |
 | `name` | Yes | Unique line name, used by `--tag` |
-| `pattern` | Yes | Tag format containing `{version}` |
+| `pattern` | Yes | Git-valid tag format containing exactly one `{version}` |
 | `model` | Yes | Version-model object |
 | `initialVersion` | Yes | Starting point when no valid tag exists |
 | `push` | No | Whether `create` pushes by default (`false`) |
@@ -139,6 +139,11 @@ a line named `default`, so existing users do not need to migrate.
 
 Add `"$schema": "./node_modules/@carllee1983/tagsmith/schema.json"` to enable
 editor completion and validation.
+
+Configuration objects are strict at every level. Unknown keys fail validation
+with their full path (for example, `tags.0.pussh`) instead of being discarded
+and replaced by a default. Both the legacy and multi-line formats accept
+`$schema` and `mergePolicy`.
 
 ### Monorepo workspaces
 
@@ -315,6 +320,11 @@ ignored when a custom policy is configured.
 all include the contributing commit IDs, summaries, and matching rule in their
 recommendation evidence.
 
+These commands fail with `incomplete-git-history` when a shallow checkout does
+not contain the complete range from the latest tag to `HEAD`; they never infer
+a bump from partial evidence. Fetch the full history first, or use the Action
+configuration below.
+
 ### Planning monorepo releases
 
 `tagsmith plan --all` is a read-only multi-line decision. Every configured
@@ -452,18 +462,27 @@ jobs:
   tags:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - id: tagsmith
         uses: CarlLee1983/Tagsmith@main # Pin a release tag or commit SHA in production.
         with:
           plan-from-commits: "true"
           plan-tag: api
       - if: steps.tagsmith.outputs.has-releases == 'true'
-        run: echo '${{ steps.tagsmith.outputs.plan }}' | jq .
+        env:
+          TAGSMITH_PLAN: ${{ steps.tagsmith.outputs.plan }}
+        run: printf '%s\n' "$TAGSMITH_PLAN" | jq .
 ```
 
 Set `with: { working-directory: packages/api, fetch-tags: "false" }` when the
 configuration lives below the repository root or tags are already available.
+When `plan-from-commits` and `fetch-tags` are both `true`, the Action completes
+a shallow checkout and fetches tags from `remote` (default `origin`). With
+`fetch-tags: "false"` it performs no fetch; supply `fetch-depth: 0` yourself or
+an incomplete checkout fails explicitly.
+
 The Action's `plan` output is the full JSON envelope; `has-releases` is `true`
 when any line is ready, and `next-tag` is the ready candidate for `plan-tag` or
 the config default line (otherwise an empty string). It does not create tags.
@@ -560,8 +579,9 @@ the test suite fails if code and schema drift apart.
 
 | Group | Codes |
 | --- | --- |
-| Tag anomalies | `pattern-mismatch`, `unparseable-version`, `duplicate-version`, `ambiguous-assignment` |
+| Tag anomalies | `pattern-mismatch`, `unparseable-version`, `duplicate-version`, `ambiguous-assignment`, `invalid-git-tag` |
 | Configuration | `orphan-tag`, `pattern-overlap-certain`, `pattern-overlap-possible`, `workspace-required`, `from-commits-unsupported` |
+| Repository history | `incomplete-git-history` |
 | Artifact consistency | `artifact-package-json-missing`, `artifact-package-json-malformed`, `artifact-version-missing`, `artifact-version-invalid`, `artifact-version-mismatch` |
 | Release policy | `release-branch-not-allowed`, `release-worktree-dirty`, `release-remote-not-checked`, `release-annotation-required`, `release-target-not-head`, `release-signature-required`, `release-artifact-not-configured`, `release-artifact-version-invalid` |
 | Command | `command-error` (emitted with `data: null` when a command cannot complete) |

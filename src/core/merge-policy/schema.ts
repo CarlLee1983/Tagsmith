@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { CONFIG_FILENAME } from "../config.js";
+import { CONFIG_FILENAME } from "../constants.js";
 
 export class MergePolicyError extends Error {}
 
@@ -21,14 +21,15 @@ const branchRuleSchema = z
     allow: z.array(z.string().min(1)).optional(),
     deny: z.array(z.string().min(1)).optional(),
   })
+  .strict()
   .refine((r) => (r.allow === undefined) !== (r.deny === undefined), {
     message: "set exactly one of allow / deny",
   });
 
-const mergePolicySchema = z.object({
+export const mergePolicySchema = z.object({
   protectedBranches: z.record(z.string().min(1), branchRuleSchema),
   onUnknownSource: z.enum(["block", "allow"]).default("block"),
-});
+}).strict();
 
 /** Extract & validate the optional `mergePolicy` key from a raw config object. */
 export function parseMergePolicy(raw: unknown): MergePolicy | null {

@@ -11,6 +11,7 @@ import type { TagAnomaly } from "../types.js";
 
 /** A tag that cannot participate in planning, produced by `analyzeTags`. */
 export const TAG_ANOMALY_CODES = [
+  "invalid-git-tag",
   "pattern-mismatch",
   "unparseable-version",
   "duplicate-version",
@@ -24,6 +25,11 @@ export const CONFIG_DIAGNOSTIC_CODES = [
   "pattern-overlap-possible",
   "workspace-required",
   "from-commits-unsupported",
+] as const;
+
+/** Repository state that cannot support a trustworthy release decision. */
+export const REPOSITORY_DIAGNOSTIC_CODES = [
+  "incomplete-git-history",
 ] as const;
 
 /** Disagreement between a tag version and the manifest committed at that tag. */
@@ -53,6 +59,7 @@ export const COMMAND_DIAGNOSTIC_CODES = ["command-error"] as const;
 export const DIAGNOSTIC_CODES = [
   ...TAG_ANOMALY_CODES,
   ...CONFIG_DIAGNOSTIC_CODES,
+  ...REPOSITORY_DIAGNOSTIC_CODES,
   ...ARTIFACT_DIAGNOSTIC_CODES,
   ...RELEASE_DIAGNOSTIC_CODES,
   ...COMMAND_DIAGNOSTIC_CODES,

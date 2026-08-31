@@ -2,6 +2,7 @@ import { classify } from "./analyze.js";
 import { createModel } from "./models/index.js";
 import { compilePattern } from "./pattern.js";
 import { matchingLines } from "./lines.js";
+import { isValidGitTagName } from "./git-tag.js";
 import type { TagAnomaly, TagLine, VersionModel } from "../types.js";
 
 export interface CheckResult {
@@ -95,6 +96,17 @@ function classifyTag(
   lines: readonly CompiledLine[],
   selectedLine?: string,
 ): ClassifiedCheck {
+  if (!isValidGitTagName(raw)) {
+    return {
+      raw,
+      line: null,
+      matches: [],
+      ok: false,
+      anomaly: "invalid-git-tag",
+      version: null,
+      model: null,
+    };
+  }
   const matchNames = matchingLines(raw, lines.map((candidate) => candidate.line))
     .map((line) => line.name);
   if (matchNames.length === 0) {

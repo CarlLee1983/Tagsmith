@@ -7,6 +7,10 @@ const execFileAsync = promisify(execFile);
 
 export class GitError extends Error {}
 
+export class IncompleteGitHistoryError extends GitError {
+  readonly diagnosticCode = "incomplete-git-history" as const;
+}
+
 export interface GitOptions {
   /** Working directory for git commands. */
   cwd: string;
@@ -59,7 +63,16 @@ export interface FetchTagsOptions extends GitOptions {
 
 /** Fetch all tags from a remote before making a release decision. */
 export async function fetchTags(opts: FetchTagsOptions): Promise<void> {
-  await git(["fetch", "--tags", opts.remote ?? "origin"], opts.cwd);
+  await git(["fetch", "--tags", "--", opts.remote ?? "origin"], opts.cwd);
+}
+
+/** Fail closed because any shallow boundary can hide commits on a merged branch. */
+export async function ensureCompleteHistory(opts: GitOptions): Promise<void> {
+  const shallow = (await git(["rev-parse", "--is-shallow-repository"], opts.cwd)).trim() === "true";
+  if (!shallow) return;
+  throw new IncompleteGitHistoryError(
+    "Git history is incomplete for --from-commits. Fetch complete history (in GitHub Actions, use checkout fetch-depth: 0 or enable the Tagsmith Action's fetch-tags input).",
+  );
 }
 
 export interface ListCommitMessagesOptions extends GitOptions {
@@ -172,7 +185,7 @@ export async function createTag(opts: CreateTagOptions): Promise<void> {
     args.push("-a");
   }
   if (opts.message !== undefined) args.push("-m", opts.message);
-  args.push(opts.name);
+  args.push("--", opts.name);
   if (opts.ref !== undefined) args.push(opts.ref);
   await git(args, opts.cwd);
 }
