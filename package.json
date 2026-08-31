@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",
-    "commander": "^12.1.0",
+    "commander": "^15.0.0",
     "picocolors": "^1.0.1",
     "semver": "^7.6.3",
     "zod": "^3.23.8"
