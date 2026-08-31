@@ -1,6 +1,6 @@
 {
   "name": "@carllee1983/tagsmith",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Define git tag specs, view tags, and generate the next git tag safely — avoiding ordering or format anomalies.",
   "type": "module",
   "publishConfig": {

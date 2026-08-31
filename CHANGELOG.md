@@ -8,6 +8,8 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-31
+
 ### Added
 
 - Strict runtime configuration validation with JSON Schema parity and complete
@@ -225,7 +227,8 @@ makes the contract machine-checked.
 - A three-layer core/git/CLI architecture and unit, integration, and CLI E2E
   test coverage.
 
-[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/CarlLee1983/Tagsmith/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/CarlLee1983/Tagsmith/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/CarlLee1983/Tagsmith/compare/v0.7.0...v0.8.0

@@ -39,6 +39,7 @@ Release、推送多個 tag，或修正既有 tag 歷史。
 | 4 | `0.8` | Artifact 與 commit-policy 一致性 | 已發佈：tag、發行產物版本與 commit 規則可在建立前交叉驗證。 |
 | 5 | `0.9` | 靜態 pattern 重疊證明 | 已發佈：設定多條 tag line 時，衝突在任何 tag 出現之前就被證明並附上可重現的例子。 |
 | 6 | `1.0` | 穩定介面契約 | 已發佈：自動化可以依賴的介面被明確定義、版本化並由測試守住。 |
+| 7 | `1.1` | Trust Hardening | 已完成：設定、Git 歷史、tag candidate、Action outputs 與供應鏈邊界皆 fail closed。 |
 | 未排程 | 擴充機制與進階信任 | 只在真實使用需求成立後處理。 |
 
 版本號代表開發順序，不代表承諾的發布日期；每階段開始前仍應以實際 issue 或設計
@@ -260,6 +261,29 @@ Conventional Commit 約定。
 - 新增命令、旗標、診斷碼或任何產品功能。
 - 細分 exit code（會讓既有 `$? -eq 1` 腳本靜默失效）。
 - 開放公開 JS API 或以 codegen 產生 schema。
+
+## 1.1 — Trust Hardening
+
+> 實作狀態：已完成，納入 `1.1.0`。
+
+### 目標
+
+讓所有會影響 release 決策的輸入與 repository 狀態都能被驗證，避免設定 typo、
+shallow history、不合法 Git tag 或 Action output 注入造成錯誤發版。
+
+### 完成內容
+
+- Runtime config 與 JSON Schema 對未知欄位採相同的嚴格拒絕策略。
+- `--from-commits` 在 shallow repository fail closed；Action 可自動補全歷史。
+- 所有 candidate 共用 Git tag name validator，Action outputs 使用安全 multiline protocol。
+- Action 具備真實 Git integration tests；CI、dependency audit、Dependabot 與 Action SHA
+  pinning 已完成加固。
+- 中英文穩定性文件、Changelog 與發布治理同步更新。
+
+### 不納入
+
+- 新版本模型、外掛系統或 release automation platform。
+- 預先 bundle Action；等 consumer runtime 安裝成本成為可量測問題後再評估。
 
 ## 未排程候選項目
 
